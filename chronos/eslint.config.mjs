@@ -1,5 +1,5 @@
 import typescriptEslint from "typescript-eslint";
-
+import eslintConfigPrettier from "eslint-config-prettier"; // 1. ADD THIS IMPORT
 export default [{
     files: ["**/*.ts"],
 }, {
@@ -24,4 +24,5 @@ export default [{
         "no-throw-literal": "warn",
         semi: "warn",
     },
+    eslintConfigPrettier,
 }];
