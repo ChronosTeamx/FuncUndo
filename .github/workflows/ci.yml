@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: chronos
+        working-directory: ./chronos
 
     steps:
       - name: Checkout
