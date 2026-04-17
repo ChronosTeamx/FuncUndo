@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: CI
 
 on:
@@ -10,6 +9,10 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: chronos
 
     steps:
       - name: Checkout
@@ -31,7 +34,7 @@ jobs:
         run: npx eslint src --ext .ts
 
       - name: Run tests
-        run: xvfb-run -a npm test    # xvfb needed because VS Code needs a display
+        run: xvfb-run -a npm test
         env:
           DISPLAY: ':99.0'
 
