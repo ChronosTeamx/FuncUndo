@@ -41,3 +41,6 @@ jobs:
 
       - name: Build
         run: npm run compile
+
+      - name: Run Extension Tests
+        run: xvfb-run -a npm test
