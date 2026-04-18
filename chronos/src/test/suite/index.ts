@@ -8,7 +8,7 @@ export   async function run() {
   });
 
   return glob('**/*.test.js', { cwd: __dirname }).then(files => {
-    files.forEach(f => mocha.addFile(f));
+    files.forEach(f => mocha.addFile(path.resolve(__dirname, f)));
 
     return new Promise<void>((resolve, reject) => {
       mocha.run(( failures:number) => {
