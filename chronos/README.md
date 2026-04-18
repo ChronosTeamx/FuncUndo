@@ -1,4 +1,4 @@
-# chronos README
+# chronos README.md
 
 This is the README for your extension "chronos". After writing up a brief description, we recommend including the following sections.
 
