@@ -1,5 +1,6 @@
 import Mocha from 'mocha';
 import { glob } from 'glob';
+import * as path from 'path';
 
 export   async function run() {
    const mocha = new Mocha({
