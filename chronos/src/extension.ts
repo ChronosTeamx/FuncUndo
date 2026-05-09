@@ -1,49 +1,48 @@
 import * as vscode from 'vscode';
-import Parser from 'web-tree-sitter';
+import { Worker } from 'worker_threads';
 import * as path from 'path';
+import { WorkerParseRequest, WorkerMessage } from './lib/types';
 
-export async function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {
   vscode.window.showInformationMessage('Chronos activated!');
 
-  try {
-    // Correct runtime wasm path
-    const runtimeWasmPath = path.join(context.extensionPath, 'dist', 'wasm', 'tree-sitter.wasm');
+  console.log('Main Extension Host booting...');
 
-    console.log('Runtime wasm:', runtimeWasmPath);
+  const workerPath = path.join(context.extensionPath, 'dist', 'worker', 'parser.worker.js');
 
-    // Initialize runtime
-    await Parser.init({
-      locateFile() {
-        return runtimeWasmPath;
-      },
-    });
+  console.log('Worker path:', workerPath);
 
-    // Create parser
-    const parser = new Parser();
+  // Spawn parser worker
+  const parserWorker = new Worker(workerPath);
 
-    // JS grammar path
-    const grammarWasmPath = path.join(
-      context.extensionPath,
-      'dist',
-      'wasm',
-      'tree-sitter-javascript.wasm',
-    );
+  // Listen for successful worker responses
+  parserWorker.on('message', (message: WorkerMessage) => {
+    if (message.type === 'PARSE_SUCCESS') {
+      console.log(`[Main Thread] Successfully received mapped AST data for Job: ${message.jobId}`);
 
-    console.log('Grammar wasm:', grammarWasmPath);
+      vscode.window.showInformationMessage('Worker IPC handshake successful!');
+    }
+  });
 
-    // Load JS grammar
-    const JavaScript = await Parser.Language.load(grammarWasmPath);
+  parserWorker.on('error', (err) => {
+    console.error('[Main Thread] Background Worker crashed:', err);
 
-    parser.setLanguage(JavaScript);
+    vscode.window.showErrorMessage(`Worker crashed: ${String(err)}`);
+  });
 
-    console.log('SUCCESS: WebAssembly Parser is armed and ready.');
+  // Test payload
+  const testPayload: WorkerParseRequest = {
+    type: 'PARSE_REQUEST',
+    jobId: 'boot-test-001',
+    filePath: '/mock/path/test.js',
+    fileContent: 'function hello() { return true; }',
+  };
 
-    vscode.window.showInformationMessage('WASM Parser initialized successfully!');
-  } catch (error) {
-    console.error(error);
-
-    vscode.window.showErrorMessage(`WASM Parser failed: ${String(error)}`);
-  }
+  // Give worker time to boot parser
+  setTimeout(() => {
+    console.log('Sending test parse request...');
+    parserWorker.postMessage(testPayload);
+  }, 1000);
 }
 
 export function deactivate() {}
