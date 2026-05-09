@@ -117,7 +117,7 @@ cd chronos-extension
     ```
 3.  **Launch:**
     Press `F5` in VS Code to open the **Extension Development Host**.
-
+```
 ---
 
 ## 📂 Project Structure
@@ -155,6 +155,4 @@ chronos-extension/
 
 *Found a bug? Open an issue. Want to contribute? Check out `CONTRIBUTING.md`.*
 
-```
 
-```
