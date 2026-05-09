@@ -29,20 +29,25 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.window.showErrorMessage(`Worker crashed: ${String(err)}`);
   });
+  // Parse whenever an editor becomes active
+  vscode.window.onDidChangeActiveTextEditor((editor) => {
+    if (!editor) {
+      return;
+    }
 
-  // Test payload
-  const testPayload: WorkerParseRequest = {
-    type: 'PARSE_REQUEST',
-    jobId: 'boot-test-001',
-    filePath: '/mock/path/test.js',
-    fileContent: 'function hello() { return true; }',
-  };
+    const document = editor.document;
 
-  // Give worker time to boot parser
-  setTimeout(() => {
-    console.log('Sending test parse request...');
-    parserWorker.postMessage(testPayload);
-  }, 1000);
+    const parseRequest: WorkerParseRequest = {
+      type: 'PARSE_REQUEST',
+      jobId: `job-${Date.now()}`,
+      filePath: document.uri.fsPath,
+      fileContent: document.getText(),
+    };
+
+    console.log(`[Main Thread] Sending parse request for: ${document.fileName}`);
+
+    parserWorker.postMessage(parseRequest);
+  });
 }
 
 export function deactivate() {}
