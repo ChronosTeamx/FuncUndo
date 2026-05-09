@@ -9,7 +9,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -21,7 +23,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "compile": "npm run check-types && npm run lint && node esbuild.js && node copy-assets.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
@@ -48,6 +50,7 @@
     "lint-staged": "^16.4.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.8.3",
+    "tree-sitter-cli": "^0.26.8",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
   },
@@ -59,5 +62,8 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "web-tree-sitter": "^0.22.5"
   }
 }
