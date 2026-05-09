@@ -47,19 +47,26 @@ parentPort.on('message', async (message: WorkerMessage) => {
       return;
     }
 
-    // TODO in Assignment 11:
-    // Actually parse message.fileContent here.
+    const startTime = performance.now();
 
-    // Mock success response for IPC verification
-    const mockSuccess: WorkerParseSuccess = {
+    const tree = parser.parse(message.fileContent);
+    console.log(tree.rootNode.toString());
+
+    const endTime = performance.now();
+
+    console.log(`[Worker] Parse completed for ${message.filePath}`);
+
+    console.log(`[Worker] Root node type: ${tree.rootNode.type}`);
+
+    const parseSuccess: WorkerParseSuccess = {
       type: 'PARSE_SUCCESS',
       jobId: message.jobId,
       filePath: message.filePath,
       functions: [],
       edges: [],
-      processingTimeMs: 12,
+      processingTimeMs: Math.round(endTime - startTime),
     };
 
-    parentPort?.postMessage(mockSuccess);
+    parentPort?.postMessage(parseSuccess);
   }
 });
