@@ -1,25 +1,53 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { Worker } from 'worker_threads';
+import * as path from 'path';
+import { WorkerParseRequest, WorkerMessage } from './lib/types';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
-  console.log('Congratulations, your extension "chronos" is now active!');
+  vscode.window.showInformationMessage('Chronos activated!');
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  const disposable = vscode.commands.registerCommand('chronos.helloWorld', () => {
-    // The code you place here will be executed every time your command is executed
-    // Display a message box to the user
-    vscode.window.showInformationMessage('Hello World from FuncUndo!');
+  console.log('Main Extension Host booting...');
+
+  const workerPath = path.join(context.extensionPath, 'dist', 'worker', 'parser.worker.js');
+
+  console.log('Worker path:', workerPath);
+
+  // Spawn parser worker
+  const parserWorker = new Worker(workerPath);
+
+  // Listen for successful worker responses
+  parserWorker.on('message', (message: WorkerMessage) => {
+    if (message.type === 'PARSE_SUCCESS') {
+      console.log(`[Main Thread] Successfully received mapped AST data for Job: ${message.jobId}`);
+
+      vscode.window.showInformationMessage('Worker IPC handshake successful!');
+    }
   });
 
-  context.subscriptions.push(disposable);
+  parserWorker.on('error', (err) => {
+    console.error('[Main Thread] Background Worker crashed:', err);
+
+    vscode.window.showErrorMessage(`Worker crashed: ${String(err)}`);
+  });
+  // Parse whenever an editor becomes active
+  vscode.window.onDidChangeActiveTextEditor((editor) => {
+    if (!editor) {
+      return;
+    }
+
+    const document = editor.document;
+
+    const parseRequest: WorkerParseRequest = {
+      type: 'PARSE_REQUEST',
+      jobId: `job-${Date.now()}`,
+      filePath: document.uri.fsPath,
+      fileContent: document.getText(),
+    };
+
+    console.log(`[Main Thread] Sending parse request for: ${document.fileName}`);
+
+    parserWorker.postMessage(parseRequest);
+  });
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
