@@ -147,7 +147,7 @@ chronos-extension/
 
 ## 🤝 The Team
 
-* **Jatin Jain]** - The Event Loop & Orchestration
+* **Jatin Jain** - The Event Loop & Orchestration
 * **Mankirat Singh Nanda** - Storage Engine 
 * **Mayur Nanda** - Parser Engine
 
