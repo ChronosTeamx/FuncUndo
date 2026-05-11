@@ -1,53 +1,94 @@
 import * as vscode from 'vscode';
-import { Worker } from 'worker_threads';
-import * as path from 'path';
-import { WorkerParseRequest, WorkerMessage } from './lib/types';
+import { ParserWorkerManager } from './worker/workerManager';
+//import the ParserWorkerManager class from the workerManager module
 
-export function activate(context: vscode.ExtensionContext) {
-  vscode.window.showInformationMessage('Chronos activated!');
+//DEMO FOR JATIN BHAI
+//IMPORTANT METHODS :
+/**
+ *
+ * init()
+ * Purpose:
+ * - Initializes the parser worker and waits for readiness.
+ *
+ * Usage:
+ * - Call once during extension activation.
+ *
+ * Example:
+ * await workerManager.init();
+ *
+ * --------------------------------------------------
+ *
+ * parseDocument(filePath, fileContent)
+ * Purpose:
+ * - Sends a document to the worker for async parsing.
+ *
+ * Usage:
+ * - Call whenever a file needs to be parsed.
+ *
+ * Example:
+ * const result =
+ *   await workerManager.parseDocument(
+ *     document.uri.fsPath,
+ *     document.getText()
+ *   );
+ *
+ * --------------------------------------------------
+ *
+ * dispose()
+ * Purpose:
+ * - Cleans up worker resources and terminates the worker.
+ *
+ * Usage:
+ * - Register with VS Code subscriptions.
+ *
+ * Example:
+ * context.subscriptions.push(workerManager);
+ */
 
-  console.log('Main Extension Host booting...');
+let workerManager: ParserWorkerManager | null = null;
+//only one instance should be used throughout the extension, so we keep it at the extension level
 
-  const workerPath = path.join(context.extensionPath, 'dist', 'worker', 'parser.worker.js');
+export async function activate(
+  context: vscode.ExtensionContext,
+  //Extension context is provided by Vscode and contains things like the extension path, subscriptions for disposables, etc
+) {
+  console.log('Chronos Extension booting...');
 
-  console.log('Worker path:', workerPath);
+  workerManager = new ParserWorkerManager(context.extensionPath);
+  //Creation of the worker manager object, which will handle all interactions with the parser worker. We pass the extension path so it can locate the worker script and WASM files.
 
-  // Spawn parser worker
-  const parserWorker = new Worker(workerPath);
+  await workerManager.init();
 
-  // Listen for successful worker responses
-  parserWorker.on('message', (message: WorkerMessage) => {
-    if (message.type === 'PARSE_SUCCESS') {
-      console.log(`[Main Thread] Successfully received mapped AST data for Job: ${message.jobId}`);
+  // DEMO USAGE ONLY
+  // try {
+  //     console.log(
+  //         '[Main Thread] Dispatching test job to worker...'
+  //     );
 
-      vscode.window.showInformationMessage('Worker IPC handshake successful!');
-    }
-  });
+  //     const result =
+  //         await workerManager.parseDocument(
+  //             '/mock/path/test.js',
+  //             'function elegant() { return "code"; }'
+  //         );
 
-  parserWorker.on('error', (err) => {
-    console.error('[Main Thread] Background Worker crashed:', err);
+  //     console.log(
+  //         `[Main Thread] Success! Awaited data for ${result.filePath} in ${result.processingTimeMs}ms`
+  //     );
 
-    vscode.window.showErrorMessage(`Worker crashed: ${String(err)}`);
-  });
-  // Parse whenever an editor becomes active
-  vscode.window.onDidChangeActiveTextEditor((editor) => {
-    if (!editor) {
-      return;
-    }
+  // } catch (error) {
+  //     console.error(
+  //         '[Main Thread] Failed to parse document:',
+  //         error
+  //     );
+  // }
 
-    const document = editor.document;
-
-    const parseRequest: WorkerParseRequest = {
-      type: 'PARSE_REQUEST',
-      jobId: `job-${Date.now()}`,
-      filePath: document.uri.fsPath,
-      fileContent: document.getText(),
-    };
-
-    console.log(`[Main Thread] Sending parse request for: ${document.fileName}`);
-
-    parserWorker.postMessage(parseRequest);
-  });
+  // // Clean shutdown
+  // context.subscriptions.push({
+  //     dispose: () =>
+  //         workerManager?.dispose()
+  // });
 }
 
-export function deactivate() {}
+export function deactivate() {
+  workerManager?.dispose();
+}

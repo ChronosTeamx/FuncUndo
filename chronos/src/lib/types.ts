@@ -8,6 +8,10 @@ export interface CodeRange {
   end: CodePosition;
 }
 
+export interface WorkerReady {
+  type: 'WORKER_READY';
+}
+
 export interface ParsedFunction {
   name: string;
   hash: string;
@@ -53,4 +57,8 @@ export interface WorkerParseError {
   errorMessage: string;
 }
 
-export type WorkerMessage = WorkerParseRequest | WorkerParseSuccess | WorkerParseError;
+export type WorkerMessage =
+  | WorkerParseRequest
+  | WorkerParseSuccess
+  | WorkerParseError
+  | WorkerReady;
