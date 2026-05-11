@@ -29,6 +29,11 @@ async function bootParser() {
     parser.setLanguage(JavaScript);
 
     console.log('[Worker] WASM Engine booted and JavaScript grammar loaded.');
+
+    // tell main thread worker is ready
+    parentPort?.postMessage({
+      type: 'WORKER_READY',
+    });
   } catch (error) {
     console.error('[Worker] Fatal Error booting WASM engine:', error);
   }
