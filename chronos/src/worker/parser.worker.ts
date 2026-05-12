@@ -2,6 +2,7 @@ import { parentPort } from 'worker_threads';
 import Parser from 'web-tree-sitter';
 import * as path from 'path';
 import { WorkerMessage, WorkerParseSuccess } from '../lib/types';
+import { extractFunctions } from './astTraverser';
 
 // Safety check: Ensure this file is only run as a Worker thread
 if (!parentPort) {
@@ -60,18 +61,18 @@ parentPort.on('message', async (message: WorkerMessage) => {
       const tree = parser.parse(message.fileContent);
       const rootNode = tree.rootNode;
 
-      // Log the structure to prove the engine read the code correctly
-      console.log(
-        `[Worker] AST Generated for ${message.filePath} | Root: ${rootNode.type} | Top-level nodes: ${rootNode.childCount}`,
-      );
-
       // 12: Walk the `rootNode` to find specific functions.
+      const functions = extractFunctions(rootNode);
+
+      console.log(
+        `[Worker] Parsed ${message.filePath} and extracted ${functions.length} functions in ${Date.now() - startTime}ms`,
+      );
 
       const successPayload: WorkerParseSuccess = {
         type: 'PARSE_SUCCESS',
         jobId: message.jobId,
         filePath: message.filePath,
-        functions: [],
+        functions: functions,
         edges: [],
         processingTimeMs: Date.now() - startTime,
       };
