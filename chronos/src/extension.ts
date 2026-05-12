@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
+import { initDB, persistDB, closeDB } from './storage/db';
 //import the ParserWorkerManager class from the workerManager module
 
 //DEMO FOR JATIN BHAI
@@ -59,6 +60,22 @@ export async function activate(
 
   await workerManager.init();
 
+  try {
+    await initDB(context);
+    console.log('[FuncUndo] DB init complete');
+  } catch (err) {
+    console.error('[FuncUndo] DB init failed:', err);
+  }
+
+
+  vscode.workspace.onDidSaveTextDocument(() => {
+    try {
+      persistDB();
+    } catch (err) {
+      console.error('[FuncUndo] persistDB failed:', err);
+    }
+  });
+
   // DEMO USAGE ONLY
   // try {
   //     console.log(
@@ -90,5 +107,6 @@ export async function activate(
 }
 
 export function deactivate() {
+  closeDB();
   workerManager?.dispose();
 }
