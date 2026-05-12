@@ -45,33 +45,48 @@ bootParser();
 // Listen for messages from the Main Thread
 parentPort.on('message', async (message: WorkerMessage) => {
   if (message.type === 'PARSE_REQUEST') {
-    console.log(`[Worker] Received job: ${message.jobId} for ${message.filePath}`);
-
+    const startTime = Date.now();
     if (!parser) {
-      console.error('[Worker] Parser is not ready yet!');
+      parentPort?.postMessage({
+        type: 'PARSE_ERROR',
+        jobId: message.jobId,
+        filePath: message.filePath,
+        errorMessage: 'WASM Parser engine is not fully booted yet.',
+      });
       return;
     }
 
-    const startTime = performance.now();
+    try {
+      const tree = parser.parse(message.fileContent);
+      const rootNode = tree.rootNode;
 
-    const tree = parser.parse(message.fileContent);
-    console.log(tree.rootNode.toString());
+      // Log the structure to prove the engine read the code correctly
+      console.log(
+        `[Worker] AST Generated for ${message.filePath} | Root: ${rootNode.type} | Top-level nodes: ${rootNode.childCount}`,
+      );
 
-    const endTime = performance.now();
+      // 12: Walk the `rootNode` to find specific functions.
 
-    console.log(`[Worker] Parse completed for ${message.filePath}`);
+      const successPayload: WorkerParseSuccess = {
+        type: 'PARSE_SUCCESS',
+        jobId: message.jobId,
+        filePath: message.filePath,
+        functions: [],
+        edges: [],
+        processingTimeMs: Date.now() - startTime,
+      };
 
-    console.log(`[Worker] Root node type: ${tree.rootNode.type}`);
+      parentPort?.postMessage(successPayload);
 
-    const parseSuccess: WorkerParseSuccess = {
-      type: 'PARSE_SUCCESS',
-      jobId: message.jobId,
-      filePath: message.filePath,
-      functions: [],
-      edges: [],
-      processingTimeMs: Math.round(endTime - startTime),
-    };
-
-    parentPort?.postMessage(parseSuccess);
+      tree.delete();
+    } catch (error: any) {
+      console.error(`[Worker] Failed to parse ${message.filePath}:`, error);
+      parentPort?.postMessage({
+        type: 'PARSE_ERROR',
+        jobId: message.jobId,
+        filePath: message.filePath,
+        errorMessage: error.message || 'Fatal error during AST generation.',
+      });
+    }
   }
 });
