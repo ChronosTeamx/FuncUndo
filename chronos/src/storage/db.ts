@@ -2,9 +2,12 @@ import initSqlJs, { Database } from 'sql.js';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { drizzle } from 'drizzle-orm/sql-js';
+import * as schema from './schema';
 
 let sqlJsDb : Database | null = null; // this will hold the in-memory database instance once initialized
 let dbPath : string | null = null; // this will hold the path to the SQLite database file in the extension's storage directory
+export let db :ReturnType<typeof drizzle<typeof schema>>; // this will hold the Drizzle ORM instance once initialized, allowing us to interact with the database using Drizzle's API
 
 export async function initDB (context: vscode.ExtensionContext): Promise<void> {
     console.log('[FuncUndo] storageUri:', context.storageUri);
@@ -33,6 +36,10 @@ export async function initDB (context: vscode.ExtensionContext): Promise<void> {
         sqlJsDb = new SQL.Database();
         console.log("[FuncUndo] New in-memory DB initialized");
     }    
+
+    db = drizzle(sqlJsDb, { schema }); // this initializes the Drizzle ORM instance using the in-memory SQL.js database and our defined schema, allowing us to interact with the database using Drizzle's API
+    console.log('[FuncUndo] Drizzle ORM ready');
+
 }
 
 // this loads the database from disk and returns the Database instance
