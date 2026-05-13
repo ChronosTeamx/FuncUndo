@@ -1,26 +1,115 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { ParserWorkerManager } from './worker/workerManager';
+import { initDB, persistDB, closeDB } from './storage/db';
+//import the ParserWorkerManager class from the workerManager module
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+//DEMO FOR JATIN BHAI
+//IMPORTANT METHODS :
+/**
+ *
+ * init()
+ * Purpose:
+ * - Initializes the parser worker and waits for readiness.
+ *
+ * Usage:
+ * - Call once during extension activation.
+ *
+ * Example:
+ * await workerManager.init();
+ *
+ * --------------------------------------------------
+ *
+ * parseDocument(filePath, fileContent)
+ * Purpose:
+ * - Sends a document to the worker for async parsing.
+ *
+ * Usage:
+ * - Call whenever a file needs to be parsed.
+ *
+ * Example:
+ * const result =
+ *   await workerManager.parseDocument(
+ *     document.uri.fsPath,
+ *     document.getText()
+ *   );
+ *
+ * --------------------------------------------------
+ *
+ * dispose()
+ * Purpose:
+ * - Cleans up worker resources and terminates the worker.
+ *
+ * Usage:
+ * - Register with VS Code subscriptions.
+ *
+ * Example:
+ * context.subscriptions.push(workerManager);
+ */
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "chronos" is now active!');
+let workerManager: ParserWorkerManager | null = null;
+//only one instance should be used throughout the extension, so we keep it at the extension level
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('chronos.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from FuncUndo!');
-	});
+export async function activate(
+  context: vscode.ExtensionContext,
+  //Extension context is provided by Vscode and contains things like the extension path, subscriptions for disposables, etc
+) {
+  console.log('Chronos Extension booting...');
 
-	context.subscriptions.push(disposable);
+  workerManager = new ParserWorkerManager(context.extensionPath);
+  //Creation of the worker manager object, which will handle all interactions with the parser worker. We pass the extension path so it can locate the worker script and WASM files.
+
+  await workerManager.init();
+
+  try {
+    await initDB(context);
+    console.log('[FuncUndo] DB init complete');
+  } catch (err) {
+    console.error('[FuncUndo] DB init failed:', err);
+  }
+
+
+  vscode.workspace.onDidSaveTextDocument(() => {
+    try {
+      persistDB();
+    } catch (err) {
+      console.error('[FuncUndo] persistDB failed:', err);
+    }
+  });
+
+  // DEMO USAGE ONLY
+  try {
+    console.log('[Main Thread] Dispatching test job to worker...');
+
+    const result = await workerManager.parseDocument(
+      '/mock/path/test.js',
+      `
+            function standardFunction() { return 1; }
+            
+            const arrowFunction = () => { 
+                return 2; 
+            };
+
+            class MyClass {
+                classMethod() { return 3; }
+            }
+            `,
+    );
+
+    console.log(
+      `[Main Thread] Success! Found functions:`,
+      result.functions.map((f) => f.name),
+    );
+  } catch (error) {
+    console.error('[Main Thread] Failed to parse document:', error);
+  }
+
+  // Clean shutdown
+  context.subscriptions.push({
+    dispose: () => workerManager?.dispose(),
+  });
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+  closeDB();
+  workerManager?.dispose();
+}
