@@ -3,6 +3,9 @@ import { ParserWorkerManager } from './worker/workerManager';
 import { initDB, persistDB, closeDB } from './storage/db';
 
 let workerManager: ParserWorkerManager | null = null;
+let isDBReady = false;
+let isProcessing = false;
+
 
 // ─── POINT 25: Debouncer ─────────────────────────────────────────────────────
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -21,8 +24,8 @@ async function getLatestFunctionHash(
   // Replace with your actual Read DAO / sql.js query
   // Example shape your DB query should return:
   // SELECT hash, start_line, end_line FROM functions
-  //   WHERE name = ? AND file_path = ?
-  //   ORDER BY saved_at DESC LIMIT 1
+  // WHERE name = ? AND file_path = ?
+  // ORDER BY saved_at DESC LIMIT 1
   return null; // wire your Read DAO here
 }
 
@@ -36,6 +39,16 @@ async function commitFunctionToDB(fn: {
   body: string;
 }): Promise<void> {
   console.log(`[CommitEngine] Saving new version of: ${fn.name}`);
+}
+async function findByHash(
+  _hash: string,
+  _filePath: string
+): Promise<{ name: string; startRow: number } | null> {
+  // TODO: wire Read DAO
+  // SELECT name, start_row FROM functions
+  //   WHERE hash = ? AND file_path = ?
+  //   ORDER BY saved_at DESC LIMIT 1
+  return null;
 }
 // ─── POINT 29: Rename Heuristics ─────────────────────────────────────────────
 // async function markAsRename(
@@ -51,7 +64,20 @@ async function commitFunctionToDB(fn: {
 // TODO Point 29: markAsRename(oldName, newName, filePath) — wire when Write DAO is ready
 // ─── POINT 26 + 27 + 28 + 29: Orchestrator ───────────────────────────────────
 async function orchestrate(filePath: string, fileText: string): Promise<void> {
-  if (!workerManager) return;
+
+  if (!workerManager || !isDBReady) {
+    console.warn('[Orchestrator] Skipping — DB not ready yet');
+    return;
+  }
+
+  // prevent race around condition if user saves rapidly mutiple times before processing finishes
+  if (isProcessing) {
+    console.warn('[Orchestrator] Skipping — already processing a save');
+    return;
+  }
+
+  isProcessing = true;
+
 
   try {
     // POINT 26 — send to Track A Web Worker via IPC
@@ -72,14 +98,16 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
           startLine: fn.range.start.row,
           endLine: fn.range.end.row,
           body: fn.rawText,
+
         });
         continue;
       }
 
-      if (existing.hash === fn.hash) {
-        // POINT 29 — same hash, check if it was just renamed
-        // (same internal AST hash, same line numbers, but different name in DB?)
-        // This is handled below in the rename sweep — skip here
+      if (
+        existing.hash === fn.hash &&
+        existing.startLine === fn.range.start.row
+      ) {
+        console.log(`[DiffCheck] No change: ${fn.name}`);
         continue;
       }
 
@@ -94,24 +122,42 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
       });
     }
 
-    // POINT 29 — Rename sweep
-    // Find functions in DB (for this file) whose hash matches a parsed fn
-    // but whose name doesn't — that's a rename
-    // for (const fn of parsedFunctions) {
-    // You'd query: SELECT name FROM functions WHERE file_path = ?
-    //   AND hash = ? AND name != ? ORDER BY saved_at DESC LIMIT 1
-    // If a row is found → it was renamed
-    // await markAsRename(_oldName, fn.name, _filePath);
-    // }
+    for (const fn of parsedFunctions) {
+      const possibleRename = await findByHash(fn.hash, filePath);
 
-    persistDB();
+      if (
+        possibleRename &&
+        possibleRename.name !== fn.name &&
+        possibleRename.startRow === fn.range.start.row  // same line = same function, just renamed
+      ) {
+        console.log(`[RenameHeuristic] Detected rename: ${possibleRename.name} → ${fn.name}`);
+        await commitFunctionToDB({
+          name: fn.name,
+          filePath,
+          hash: fn.hash,
+          startLine: fn.range.start.row,
+          endLine: fn.range.end.row,
+          body: fn.rawText,
+          // renamedFrom: possibleRename.name,  // ✅ track old name
+        });
+      }
+    }
+
   } catch (err) {
     console.error('[Orchestrator] Failed:', err);
+  } finally {
+    // Always runs — even if worker or DB throws
+    isProcessing = false;
+    try {
+      persistDB();
+    } catch (err) {
+      console.error('[Chronos] persistDB failed:', err);
+    }
   }
 }
 
 // ─── POINT 24 + 25: Save Listener + Debouncer wired together ─────────────────
-const debouncedOrchestrate = debounce(orchestrate, 1500);
+const debouncedOrchestrate = debounce(orchestrate, 2000);
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('Chronos Extension booting...');
@@ -121,6 +167,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   try {
     await initDB(context);
+    isDBReady = true;
+    console.log('[Chronos] DB initialized successfully');
     console.log('[Chronos] DB init complete');
   } catch (err) {
     console.error('[Chronos] DB init failed:', err);
