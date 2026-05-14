@@ -64,8 +64,8 @@ async function findByHash(
 // TODO Point 29: markAsRename(oldName, newName, filePath) — wire when Write DAO is ready
 // ─── POINT 26 + 27 + 28 + 29: Orchestrator ───────────────────────────────────
 async function orchestrate(filePath: string, fileText: string): Promise<void> {
-
-  if (!workerManager || !isDBReady) {
+  
+   if (!workerManager || !isDBReady) {
     console.warn('[Orchestrator] Skipping — DB not ready yet');
     return;
   }
@@ -98,7 +98,7 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
           startLine: fn.range.start.row,
           endLine: fn.range.end.row,
           body: fn.rawText,
-
+          
         });
         continue;
       }
