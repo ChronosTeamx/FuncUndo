@@ -6,6 +6,8 @@ import { WorkerMessage, WorkerParseRequest, WorkerParseSuccess } from '../lib/ty
 export class ParserWorkerManager {
   private worker: Worker | null = null;
 
+  private consecutiveRestarts = 0;
+  private readonly MAX_RESTARTS = 3;
   private jobRegistry = new Map<
     string,
     {
@@ -26,6 +28,8 @@ export class ParserWorkerManager {
         // worker boot complete
         if (message.type === 'WORKER_READY') {
           console.log('[WorkerManager] Worker ready.');
+          // --- NEW: Reset the circuit breaker because it booted successfully! ---
+          this.consecutiveRestarts = 0;
 
           resolve();
           return;
@@ -48,7 +52,38 @@ export class ParserWorkerManager {
       });
 
       this.worker!.on('error', (err) => {
+        console.error('[WorkerManager] Fatal worker error:', err);
         reject(err);
+      });
+
+      //RESURRECTION SUPPORT ( to spin up a new worker if the current dies)
+      this.worker!.on('exit', (code) => {
+        console.warn(
+          `[WorkerManager] ⚠️ Worker thread died (Code: ${code}). Initiating resurrection...`,
+        );
+
+        // 1. Prevent infinite hangs: Reject any jobs that were waiting when it crashed
+        for (const [, job] of this.jobRegistry.entries()) {
+          job.reject(new Error('Worker thread crashed during execution.'));
+        }
+        this.jobRegistry.clear(); // Wipe the registry clean
+
+        // 2. Clear the dead thread
+        this.worker = null;
+
+        this.consecutiveRestarts++;
+
+        if (this.consecutiveRestarts > this.MAX_RESTARTS) {
+          console.error(
+            `[WorkerManager] 🚨 CIRCUIT BREAKER TRIPPED. Worker failed ${this.MAX_RESTARTS} times. Halting resurrections.`,
+          );
+          // We DO NOT call this.init() again. The system stays dead.
+          // Friend 2 could later catch this state and show a vscode.window.showErrorMessage to the user.
+          return;
+        }
+
+        // 3. Reboot a fresh instance immediately
+        this.init().catch((err) => console.error('[WorkerManager] ❌ Failed to resurrect:', err));
       });
     });
   }
@@ -81,6 +116,16 @@ export class ParserWorkerManager {
     if (this.worker) {
       this.worker.terminate();
       this.worker = null;
+    }
+  }
+
+  /**
+   * DANGER: Only use this for testing the resurrection protocol.
+   * Physically murders the background thread.
+   */
+  public forceKillForTesting() {
+    if (this.worker) {
+      this.worker.terminate();
     }
   }
 }

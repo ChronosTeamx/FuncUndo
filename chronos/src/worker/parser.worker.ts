@@ -3,6 +3,7 @@ import Parser from 'web-tree-sitter';
 import * as path from 'path';
 import { WorkerMessage, WorkerParseSuccess } from '../lib/types';
 import { extractFunctions } from './astTraverser';
+import { generateFileHash } from './semanticHasher';
 
 // Safety check: Ensure this file is only run as a Worker thread
 if (!parentPort) {
@@ -64,6 +65,10 @@ parentPort.on('message', async (message: WorkerMessage) => {
       // 12: Walk the `rootNode` to find specific functions.
       const functions = extractFunctions(rootNode);
 
+      // Generate the Master File Hash by pulling the individual hashes we just created
+      const functionHashes = functions.map((f) => f.hash);
+      const masterFileHash = generateFileHash(functionHashes);
+
       console.log(
         `[Worker] Parsed ${message.filePath} and extracted ${functions.length} functions in ${Date.now() - startTime}ms`,
       );
@@ -73,6 +78,7 @@ parentPort.on('message', async (message: WorkerMessage) => {
         jobId: message.jobId,
         filePath: message.filePath,
         functions: functions,
+        fileHash: masterFileHash,
         edges: [],
         processingTimeMs: Date.now() - startTime,
       };

@@ -45,6 +45,7 @@ export interface WorkerParseSuccess {
   type: 'PARSE_SUCCESS';
   jobId: string;
   filePath: string;
+  fileHash: string;
   functions: ParsedFunction[];
   edges: IntraFileEdge[];
   processingTimeMs: number;
