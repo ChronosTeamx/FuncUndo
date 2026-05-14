@@ -87,12 +87,20 @@ parentPort.on('message', async (message: WorkerMessage) => {
 
       tree.delete();
     } catch (error: any) {
-      console.error(`[Worker] Failed to parse ${message.filePath}:`, error);
+      // THE STRUCTURED CLONE FIX ---
+      // Manually extract properties because the IPC bridge strips Error prototypes
+      const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+      const errorStack = error instanceof Error ? error.stack : '';
+
+      console.error(`[Worker] Failed to parse ${message.filePath}:`, errorMessage);
+
+      // Send the flattened plain JSON object
       parentPort?.postMessage({
         type: 'PARSE_ERROR',
         jobId: message.jobId,
         filePath: message.filePath,
-        errorMessage: error.message || 'Fatal error during AST generation.',
+        errorMessage: errorMessage,
+        errorStack: errorStack,
       });
     }
   }

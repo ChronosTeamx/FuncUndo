@@ -60,31 +60,31 @@ export async function activate(
   await workerManager.init();
 
   // DEMO USAGE ONLY
-  try {
-    console.log('[Main Thread] Dispatching test job to worker...');
+  // try {
+  //   console.log('[Main Thread] Dispatching test job to worker...');
 
-    const result = await workerManager.parseDocument(
-      '/mock/path/test.js',
-      `
-            function standardFunction() { return 1; }
-            
-            const arrowFunction = () => { 
-                return 2; 
-            };
+  //   const result = await workerManager.parseDocument(
+  //     '/mock/path/test.js',
+  //     `
+  //           function standardFunction() { return 1; }
 
-            class MyClass {
-                classMethod() { return 3; }
-            }
-            `,
-    );
+  //           const arrowFunction = () => {
+  //               return 2;
+  //           };
 
-    console.log(
-      `[Main Thread] Success! Found functions:`,
-      result.functions.map((f) => f.name),
-    );
-  } catch (error) {
-    console.error('[Main Thread] Failed to parse document:', error);
-  }
+  //           class MyClass {
+  //               classMethod() { return 3; }
+  //           }
+  //           `,
+  //   );
+
+  //   console.log(
+  //     `[Main Thread] Success! Found functions:`,
+  //     result.functions.map((f) => f.name),
+  //   );
+  // } catch (error) {
+  //   console.error('[Main Thread] Failed to parse document:', error);
+  // }
 
   // Clean shutdown
   context.subscriptions.push({

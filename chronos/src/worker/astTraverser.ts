@@ -22,6 +22,13 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
 
   function walk(node: SyntaxNode) {
     if (FUNCTION_TYPES.has(node.type)) {
+      if (node.hasError) {
+        console.log(
+          `[Worker] Skipping broken syntax state for function at row ${node.startPosition.row}`,
+        );
+        return; // Stop processing this specific node
+      }
+
       const parsedFunc: ParsedFunction = {
         name: extractFunctionName(node),
         hash: generateStructuralHash(node),

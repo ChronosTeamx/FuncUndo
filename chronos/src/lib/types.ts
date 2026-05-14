@@ -1,3 +1,74 @@
+// ======================================================
+// Semantic Hashing Configuration
+// ======================================================
+
+/**
+ * AST node types that never affect semantic meaning.
+ * Safe to ignore during hashing.
+ */
+export const EXCLUDED_NODE_TYPES = new Set<string>(['comment', ';', 'ERROR']);
+
+/**
+ * Node types whose exact textual value
+ * changes program semantics.
+ *
+ * Example:
+ * + !== *
+ * 5 !== 10
+ */
+export const VALUE_SENSITIVE_TYPES = new Set<string>([
+  // literals
+  'number',
+  'string',
+  'boolean',
+
+  // arithmetic
+  '+',
+  '-',
+  '*',
+  '/',
+  '%',
+
+  // assignment / comparison
+  '=',
+  '==',
+  '===',
+  '!=',
+  '!==',
+  '>',
+  '<',
+  '>=',
+  '<=',
+]);
+
+/**
+ * AST structures that carry semantic meaning.
+ *
+ * Wrapper/punctuation nodes are excluded
+ * to preserve formatting invariance.
+ */
+export const SEMANTIC_NODE_TYPES = new Set<string>([
+  // functions
+  'function_declaration',
+  'method_definition',
+  'arrow_function',
+
+  // statements
+  'return_statement',
+  'if_statement',
+  'for_statement',
+  'while_statement',
+
+  // expressions
+  'binary_expression',
+  'call_expression',
+  'assignment_expression',
+  'member_expression',
+
+  // names matter semantically
+  'identifier',
+]);
+
 export interface CodePosition {
   row: number; // The 0-indexed line number
   column: number; // The 0-indexed character offset on that line
