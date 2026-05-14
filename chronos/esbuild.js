@@ -1,4 +1,6 @@
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -23,6 +25,28 @@ const esbuildProblemMatcherPlugin = {
   },
 };
 
+/**
+ * Copies sql-wasm.wasm into dist/ after every build
+ * @type {import('esbuild').Plugin}
+ */
+const copyWasmPlugin = {
+  name: 'copy-wasm',
+  setup(build) {
+    build.onEnd(() => {
+      const src  = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+      const dest = path.join(__dirname, 'dist', 'sql-wasm.wasm');
+
+      if (!fs.existsSync(path.join(__dirname, 'dist'))) {
+        fs.mkdirSync(path.join(__dirname, 'dist'));
+      }
+
+      fs.copyFileSync(src, dest);
+      console.log('[build] sql-wasm.wasm → dist/');
+    });
+  },
+};
+
+
 async function main() {
   const ctx = await esbuild.context({
     entryPoints: ['src/extension.ts', 'src/worker/parser.worker.ts'],
@@ -33,10 +57,11 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outdir: 'dist',
-    external: ['vscode'],
+    external: ['vscode','sql.js'],
     logLevel: 'silent',
     plugins: [
       /* add to the end of plugins array */
+      copyWasmPlugin, 
       esbuildProblemMatcherPlugin,
     ],
   });
