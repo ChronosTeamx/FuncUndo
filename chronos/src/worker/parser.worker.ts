@@ -3,6 +3,7 @@ import Parser from 'web-tree-sitter';
 import * as path from 'path';
 import { WorkerMessage, WorkerParseSuccess } from '../lib/types';
 import { extractFunctions } from './astTraverser';
+import { generateFileHash } from './semanticHasher';
 
 // Safety check: Ensure this file is only run as a Worker thread
 if (!parentPort) {
@@ -64,6 +65,10 @@ parentPort.on('message', async (message: WorkerMessage) => {
       // 12: Walk the `rootNode` to find specific functions.
       const functions = extractFunctions(rootNode);
 
+      // Generate the Master File Hash by pulling the individual hashes we just created
+      const functionHashes = functions.map((f) => f.hash);
+      const masterFileHash = generateFileHash(functionHashes);
+
       console.log(
         `[Worker] Parsed ${message.filePath} and extracted ${functions.length} functions in ${Date.now() - startTime}ms`,
       );
@@ -73,6 +78,7 @@ parentPort.on('message', async (message: WorkerMessage) => {
         jobId: message.jobId,
         filePath: message.filePath,
         functions: functions,
+        fileHash: masterFileHash,
         edges: [],
         processingTimeMs: Date.now() - startTime,
       };
@@ -81,12 +87,20 @@ parentPort.on('message', async (message: WorkerMessage) => {
 
       tree.delete();
     } catch (error: any) {
-      console.error(`[Worker] Failed to parse ${message.filePath}:`, error);
+      // THE STRUCTURED CLONE FIX ---
+      // Manually extract properties because the IPC bridge strips Error prototypes
+      const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+      const errorStack = error instanceof Error ? error.stack : '';
+
+      console.error(`[Worker] Failed to parse ${message.filePath}:`, errorMessage);
+
+      // Send the flattened plain JSON object
       parentPort?.postMessage({
         type: 'PARSE_ERROR',
         jobId: message.jobId,
         filePath: message.filePath,
-        errorMessage: error.message || 'Fatal error during AST generation.',
+        errorMessage: errorMessage,
+        errorStack: errorStack,
       });
     }
   }

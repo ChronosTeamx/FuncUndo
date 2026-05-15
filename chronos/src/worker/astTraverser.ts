@@ -1,5 +1,6 @@
 import type { SyntaxNode } from 'web-tree-sitter';
 import { ParsedFunction } from '../lib/types';
+import { generateStructuralHash } from './semanticHasher';
 
 const FUNCTION_TYPES = new Set(['function_declaration', 'arrow_function', 'method_definition']);
 
@@ -21,9 +22,16 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
 
   function walk(node: SyntaxNode) {
     if (FUNCTION_TYPES.has(node.type)) {
+      if (node.hasError) {
+        console.log(
+          `[Worker] Skipping broken syntax state for function at row ${node.startPosition.row}`,
+        );
+        return; // Stop processing this specific node
+      }
+
       const parsedFunc: ParsedFunction = {
         name: extractFunctionName(node),
-        hash: 'placeholder_hash',
+        hash: generateStructuralHash(node),
         range: {
           start: { row: node.startPosition.row, column: node.startPosition.column },
           end: { row: node.endPosition.row, column: node.endPosition.column },
