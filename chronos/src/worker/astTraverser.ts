@@ -16,12 +16,46 @@ function extractFunctionName(node: SyntaxNode): string {
   return 'anonymous_function';
 }
 
+function resolveCallTarget(calleeNode: SyntaxNode): string | null {
+  let currentNode = calleeNode;
+
+  if (currentNode.type === 'optional_chain') {
+    const unwrapped = currentNode.firstNamedChild;
+    if (!unwrapped) return null;
+    currentNode = unwrapped;
+  }
+
+  if (currentNode.type === 'identifier') {
+    return currentNode.text;
+  }
+
+  if (currentNode.type === 'member_expression') {
+    const propertyNode = currentNode.childForFieldName('property');
+    // If the object itself is a call (getAuth().login), the continuous recursion
+    // will catch getAuth, so we just want the rightmost leaf (login).
+    if (propertyNode && propertyNode.type === 'property_identifier') {
+      return propertyNode.text;
+    }
+  }
+
+  if (currentNode.type === 'subscript_expression') {
+    const indexNode = currentNode.childForFieldName('index');
+
+    // ONLY extract if it is a hardcoded string.
+    // Dynamic properties (obj[propName]) are gracefully ignored.
+    if (indexNode && indexNode.type === 'string') {
+      return indexNode.text.replace(/['"`]/g, '');
+    }
+  }
+
+  return null;
+}
+
 /**
  * Scans STRICTLY inside a function's syntax tree to find execution calls.
  * Returns a deduplicated array of the names of the functions being called.
  */
 function extractInternalCalls(functionNode: SyntaxNode): string[] {
-  // 1. Immediately use a Set for O(1) deduplication
   const dependencies = new Set<string>();
 
   function walkBody(node: SyntaxNode) {
@@ -31,15 +65,14 @@ function extractInternalCalls(functionNode: SyntaxNode): string[] {
 
     if (node.type === 'call_expression') {
       const callee = node.childForFieldName('function');
-
-      // Strict Typing: Ignore IIFEs / parenthesized anonymous blocks for now.
-      // Only extract if it's a clean identifier.
-      if (callee && callee.type === 'identifier') {
-        dependencies.add(callee.text);
+      if (callee) {
+        const targetName = resolveCallTarget(callee);
+        if (targetName) {
+          dependencies.add(targetName); // Map EVERYTHING for now
+        }
       }
     }
 
-    // --- 🔄 CONTINUOUS RECURSION (The Matryoshka Fix) ---
     // We MUST keep walking the children to catch foo(bar()) where bar()
     // is hidden inside the arguments array of foo().
     for (let i = 0; i < node.childCount; i++) {
@@ -101,6 +134,21 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
   }
 
   walk(rootNode); //RECURSION TRIGGER
+
+  const validLocalSignatures = new Set(results.map((f) => f.name));
+
+  for (const func of results) {
+    const purifiedCalls: string[] = [];
+
+    for (const rawCall of func.calls) {
+      if (validLocalSignatures.has(rawCall)) {
+        purifiedCalls.push(rawCall);
+      }
+    }
+
+    // Overwrite the dirty raw calls with the purified list
+    func.calls = purifiedCalls;
+  }
 
   return results;
 }
