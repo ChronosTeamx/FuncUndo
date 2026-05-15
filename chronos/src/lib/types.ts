@@ -88,6 +88,7 @@ export interface ParsedFunction {
   hash: string;
   range: CodeRange;
   rawText: string;
+  calls: string[]; // List of called function names within this function
 }
 
 export interface IntraFileEdge {

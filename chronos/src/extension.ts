@@ -14,10 +14,13 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 }
 
 // ─── POINT 27: Diff Check — query sql.js for latest known hash ───────────────
-async function getLatestFunctionHash(
-  // _functionName: string,
-  // _filePath: string
-): Promise<{ hash: string; startLine: number; endLine: number } | null> {
+async function getLatestFunctionHash(): Promise<{
+// _functionName: string,
+// _filePath: string
+  hash: string;
+  startLine: number;
+  endLine: number;
+} | null> {
   // Replace with your actual Read DAO / sql.js query
   // Example shape your DB query should return:
   // SELECT hash, start_line, end_line FROM functions
@@ -119,32 +122,6 @@ export async function activate(context: vscode.ExtensionContext) {
   workerManager = new ParserWorkerManager(context.extensionPath);
   await workerManager.init();
 
-  // DEMO USAGE ONLY
-  // try {
-  //   console.log('[Main Thread] Dispatching test job to worker...');
-
-  //   const result = await workerManager.parseDocument(
-  //     '/mock/path/test.js',
-  //     `
-  //           function standardFunction() { return 1; }
-
-  //           const arrowFunction = () => {
-  //               return 2;
-  //           };
-
-  //           class MyClass {
-  //               classMethod() { return 3; }
-  //           }
-  //           `,
-  //   );
-
-  //   console.log(
-  //     `[Main Thread] Success! Found functions:`,
-  //     result.functions.map((f) => f.name),
-  //   );
-  // } catch (error) {
-  //   console.error('[Main Thread] Failed to parse document:', error);
-  // }
   try {
     await initDB(context);
     console.log('[Chronos] DB init complete');
@@ -162,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (!supported.includes(document.languageId)) return;
 
       debouncedOrchestrate(document.uri.fsPath, document.getText());
-    })
+    }),
   );
 
   context.subscriptions.push({

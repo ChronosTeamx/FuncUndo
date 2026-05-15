@@ -16,6 +16,56 @@ function extractFunctionName(node: SyntaxNode): string {
   return 'anonymous_function';
 }
 
+/**
+ * Scans STRICTLY inside a function's syntax tree to find execution calls.
+ * Returns a deduplicated array of the names of the functions being called.
+ */
+function extractInternalCalls(functionNode: SyntaxNode): string[] {
+  // 1. Immediately use a Set for O(1) deduplication
+  const dependencies = new Set<string>();
+
+  function walkBody(node: SyntaxNode) {
+    if (['function_declaration', 'arrow_function', 'method_definition'].includes(node.type)) {
+      return;
+    }
+
+    if (node.type === 'call_expression') {
+      const callee = node.childForFieldName('function');
+
+      // Strict Typing: Ignore IIFEs / parenthesized anonymous blocks for now.
+      // Only extract if it's a clean identifier.
+      if (callee && callee.type === 'identifier') {
+        dependencies.add(callee.text);
+      }
+    }
+
+    // --- 🔄 CONTINUOUS RECURSION (The Matryoshka Fix) ---
+    // We MUST keep walking the children to catch foo(bar()) where bar()
+    // is hidden inside the arguments array of foo().
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child) walkBody(child);
+    }
+  }
+
+  // Start the walk ONLY on the body to prevent the root node from instantly
+  // triggering the Circuit Breaker and killing the scan.
+  const bodyNode = functionNode.childForFieldName('body');
+
+  if (bodyNode) {
+    walkBody(bodyNode);
+  } else {
+    // Arrow functions with implicit returns (e.g., const x = () => foo(bar()))
+    // Their children are the direct expressions.
+    for (let i = 0; i < functionNode.childCount; i++) {
+      const child = functionNode.child(i);
+      if (child) walkBody(child);
+    }
+  }
+
+  return Array.from(dependencies);
+}
+
 //DFS( MAIN FUNCTION )
 export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
   const results: ParsedFunction[] = [];
@@ -37,6 +87,7 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
           end: { row: node.endPosition.row, column: node.endPosition.column },
         },
         rawText: node.text,
+        calls: extractInternalCalls(node),
       };
       results.push(parsedFunc);
     }
