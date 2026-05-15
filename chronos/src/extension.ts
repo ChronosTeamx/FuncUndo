@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
 import { initDB, persistDB, closeDB } from './storage/db';
+ import { generateFileHash } from './worker/semanticHasher';
+
 
 let workerManager: ParserWorkerManager | null = null;
 let isDBReady = false;
@@ -84,6 +86,19 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
     const result = await workerManager.parseDocument(filePath, fileText);
     console.log('[DEBUG] Parsed functions:', JSON.stringify(result.functions, null, 2));
     const parsedFunctions = result.functions;
+  
+    // uncomment it when we wwill get the getLastFileHAsh working in the the db 
+
+//     const fileHash = generateFileHash(parsedFunctions.map(fn => fn.hash));
+// const lastFileHash = await getLastFileHash(filePath);
+
+// if (lastFileHash && fileHash === lastFileHash) {
+//   console.log('[Orchestrator] File unchanged, skipping');
+//   return;
+// }
+//
+
+// console.log(`[Orchestrator] Parsed ${parsedFunctions.length} functions from ${filePath}`);
 
     // POINT 27 — for each parsed function, diff check against DB
     for (const fn of parsedFunctions) {
@@ -138,7 +153,7 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
           startLine: fn.range.start.row,
           endLine: fn.range.end.row,
           body: fn.rawText,
-          // renamedFrom: possibleRename.name,  // ✅ track old name
+          //renamedFrom: possibleRename.name,  // ✅ track old name
         });
       }
     }
