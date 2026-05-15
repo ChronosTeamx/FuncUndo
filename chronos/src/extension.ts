@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
 import { initDB, persistDB, closeDB } from './storage/db';
+import { HistoryViewProvider } from './providers/HistoryViewProvider';
 
 let workerManager: ParserWorkerManager | null = null;
 
@@ -14,10 +15,13 @@ function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
 }
 
 // ─── POINT 27: Diff Check — query sql.js for latest known hash ───────────────
-async function getLatestFunctionHash(
-  // _functionName: string,
-  // _filePath: string
-): Promise<{ hash: string; startLine: number; endLine: number } | null> {
+async function getLatestFunctionHash(): Promise<{
+// _functionName: string,
+// _filePath: string
+  hash: string;
+  startLine: number;
+  endLine: number;
+} | null> {
   // Replace with your actual Read DAO / sql.js query
   // Example shape your DB query should return:
   // SELECT hash, start_line, end_line FROM functions
@@ -116,6 +120,12 @@ const debouncedOrchestrate = debounce(orchestrate, 1500);
 export async function activate(context: vscode.ExtensionContext) {
   console.log('Chronos Extension booting...');
 
+  const historyProvider = new HistoryViewProvider(context.extensionUri);
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider('chronos.historyView', historyProvider),
+  );
+
   workerManager = new ParserWorkerManager(context.extensionPath);
   await workerManager.init();
 
@@ -136,7 +146,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (!supported.includes(document.languageId)) return;
 
       debouncedOrchestrate(document.uri.fsPath, document.getText());
-    })
+    }),
   );
 
   context.subscriptions.push({

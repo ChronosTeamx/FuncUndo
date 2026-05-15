@@ -33,7 +33,7 @@ const copyWasmPlugin = {
   name: 'copy-wasm',
   setup(build) {
     build.onEnd(() => {
-      const src  = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+      const src = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
       const dest = path.join(__dirname, 'dist', 'sql-wasm.wasm');
 
       if (!fs.existsSync(path.join(__dirname, 'dist'))) {
@@ -46,7 +46,6 @@ const copyWasmPlugin = {
   },
 };
 
-
 async function main() {
   const ctx = await esbuild.context({
     entryPoints: ['src/extension.ts', 'src/worker/parser.worker.ts'],
@@ -57,11 +56,11 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outdir: 'dist',
-    external: ['vscode','sql.js'],
+    external: ['vscode', 'sql.js'],
     logLevel: 'silent',
     plugins: [
       /* add to the end of plugins array */
-      copyWasmPlugin, 
+      copyWasmPlugin,
       esbuildProblemMatcherPlugin,
     ],
   });
@@ -77,3 +76,32 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// 1. Build the Node.js Extension Host
+esbuild
+  .build({
+    entryPoints: ['src/extension.ts'],
+    bundle: true,
+    outfile: 'dist/extension.js',
+    external: ['vscode'],
+    format: 'cjs',
+    platform: 'node',
+  })
+  .catch(() => process.exit(1));
+
+// 2. Build the React Webview (New!)
+esbuild
+  .build({
+    entryPoints: ['src/webview/index.tsx'],
+    bundle: true,
+    outfile: 'dist/webview.js',
+    platform: 'browser',
+    format: 'iife',
+
+    loader: {
+      '.css': 'css',
+    },
+
+    assetNames: 'assets/[name]',
+  })
+  .catch(() => process.exit(1));

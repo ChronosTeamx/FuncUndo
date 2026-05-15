@@ -22,8 +22,6 @@ async function bootParser() {
     });
     parser = new Parser();
 
-    // Calculate the path to the dist/wasm folder based on the worker's compiled location
-    // The worker will live in dist/worker/, so we go up one level to dist, then into wasm
     const wasmPath = path.join(__dirname, '..', 'wasm', 'tree-sitter-javascript.wasm');
 
     const JavaScript = await Parser.Language.load(wasmPath);
