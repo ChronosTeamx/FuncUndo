@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
 import { initDB, persistDB, closeDB } from './storage/db';
- import { generateFileHash } from './worker/semanticHasher';
+//  import { generateFileHash } from './worker/semanticHasher';
 
 
 let workerManager: ParserWorkerManager | null = null;
@@ -43,8 +43,8 @@ async function commitFunctionToDB(fn: {
   console.log(`[CommitEngine] Saving new version of: ${fn.name}`);
 }
 async function findByHash(
-  _hash: string,
-  _filePath: string
+  // _hash: string,
+  // _filePath: string
 ): Promise<{ name: string; startRow: number } | null> {
   // TODO: wire Read DAO
   // SELECT name, start_row FROM functions
@@ -66,8 +66,8 @@ async function findByHash(
 // TODO Point 29: markAsRename(oldName, newName, filePath) — wire when Write DAO is ready
 // ─── POINT 26 + 27 + 28 + 29: Orchestrator ───────────────────────────────────
 async function orchestrate(filePath: string, fileText: string): Promise<void> {
-  
-   if (!workerManager || !isDBReady) {
+
+  if (!workerManager || !isDBReady) {
     console.warn('[Orchestrator] Skipping — DB not ready yet');
     return;
   }
@@ -86,19 +86,19 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
     const result = await workerManager.parseDocument(filePath, fileText);
     console.log('[DEBUG] Parsed functions:', JSON.stringify(result.functions, null, 2));
     const parsedFunctions = result.functions;
-  
+
     // uncomment it when we wwill get the getLastFileHAsh working in the the db 
 
-//     const fileHash = generateFileHash(parsedFunctions.map(fn => fn.hash));
-// const lastFileHash = await getLastFileHash(filePath);
+    //     const fileHash = generateFileHash(parsedFunctions.map(fn => fn.hash));
+    // const lastFileHash = await getLastFileHash(filePath);
 
-// if (lastFileHash && fileHash === lastFileHash) {
-//   console.log('[Orchestrator] File unchanged, skipping');
-//   return;
-// }
-//
+    // if (lastFileHash && fileHash === lastFileHash) {
+    //   console.log('[Orchestrator] File unchanged, skipping');
+    //   return;
+    // }
+    //
 
-// console.log(`[Orchestrator] Parsed ${parsedFunctions.length} functions from ${filePath}`);
+    // console.log(`[Orchestrator] Parsed ${parsedFunctions.length} functions from ${filePath}`);
 
     // POINT 27 — for each parsed function, diff check against DB
     for (const fn of parsedFunctions) {
@@ -113,7 +113,7 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
           startLine: fn.range.start.row,
           endLine: fn.range.end.row,
           body: fn.rawText,
-          
+
         });
         continue;
       }
@@ -138,7 +138,8 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
     }
 
     for (const fn of parsedFunctions) {
-      const possibleRename = await findByHash(fn.hash, filePath);
+      // const possibleRename = await findByHash(fn.hash, filePath);
+      const possibleRename = await findByHash();
 
       if (
         possibleRename &&

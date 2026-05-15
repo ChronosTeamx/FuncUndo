@@ -222,7 +222,8 @@ describe('Orchestrator — Rename Detection', () => {
         await runOrchestrationLogic(
             [fn],
             async () => ({ hash: 'hash_abc123', startLine: 0, name: 'addNumbers' }),
-            async (hash, _filePath) => {
+            // async (hash, _filePath) => {
+            async (hash) => {
                 if (hash === 'hash_abc123') {
                     return { name: 'add', startRow: 0 }; // old name in DB
                 }
