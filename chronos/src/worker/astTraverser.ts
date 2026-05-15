@@ -19,19 +19,16 @@ function extractFunctionName(node: SyntaxNode): string {
 function resolveCallTarget(calleeNode: SyntaxNode): string | null {
   let currentNode = calleeNode;
 
-  // 🔍 Edge Case 3: Unwrap Optional Chaining (user?.calc())
   if (currentNode.type === 'optional_chain') {
     const unwrapped = currentNode.firstNamedChild;
     if (!unwrapped) return null;
     currentNode = unwrapped;
   }
 
-  // 🎯 Scenario A: Direct Call -> calculateTax()
   if (currentNode.type === 'identifier') {
     return currentNode.text;
   }
 
-  // 🎯 Scenario B: Object Call / Chained -> Utils.calculateTax()
   if (currentNode.type === 'member_expression') {
     const propertyNode = currentNode.childForFieldName('property');
     // If the object itself is a call (getAuth().login), the continuous recursion
@@ -41,14 +38,12 @@ function resolveCallTarget(calleeNode: SyntaxNode): string | null {
     }
   }
 
-  // 🎯 Scenario C: Bracket Access -> obj["calc"]()
   if (currentNode.type === 'subscript_expression') {
     const indexNode = currentNode.childForFieldName('index');
 
     // ONLY extract if it is a hardcoded string.
     // Dynamic properties (obj[propName]) are gracefully ignored.
     if (indexNode && indexNode.type === 'string') {
-      // Strip the quotes: '"calc"' -> 'calc'
       return indexNode.text.replace(/['"`]/g, '');
     }
   }
@@ -61,7 +56,6 @@ function resolveCallTarget(calleeNode: SyntaxNode): string | null {
  * Returns a deduplicated array of the names of the functions being called.
  */
 function extractInternalCalls(functionNode: SyntaxNode): string[] {
-  // 1. Immediately use a Set for O(1) deduplication
   const dependencies = new Set<string>();
 
   function walkBody(node: SyntaxNode) {
@@ -143,12 +137,10 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
 
   const validLocalSignatures = new Set(results.map((f) => f.name));
 
-  // 2. Purify the Graph
   for (const func of results) {
     const purifiedCalls: string[] = [];
 
     for (const rawCall of func.calls) {
-      // Instant O(1) check! If it's not declared in this file, throw it away.
       if (validLocalSignatures.has(rawCall)) {
         purifiedCalls.push(rawCall);
       }
