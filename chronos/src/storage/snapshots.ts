@@ -9,8 +9,8 @@ import { setPointer } from './pointer';
 export interface parsedFunction {
   filePath: string;
   functionName: string;
-  parentName: string | null;
-  parentId: string | null;
+  parentName: string ;
+  parentId: string ;
   content: string;
   hash: string;
   dependencies: string[]; // id of functions this one calls
