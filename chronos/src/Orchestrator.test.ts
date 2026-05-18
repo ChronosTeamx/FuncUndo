@@ -96,6 +96,7 @@ function makeFn(overrides: Partial<ParsedFunction> = {}): ParsedFunction {
         name: 'testFn',
         hash: 'hash_abc123',
         rawText: 'function testFn() { return 1; }',
+        calls: [],
         range: {
             start: { row: 0, column: 0 },
             end: { row: 2, column: 1 },
