@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db, getDB, persistDB } from './db';
+import { db, getDB} from './db';
 import { pointers } from './schema';
 
 // Set or update pointer for a function
