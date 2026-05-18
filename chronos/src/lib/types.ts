@@ -1,3 +1,30 @@
+// --- THE ENUMS & TELEMETRY (4.23) ---
+
+export interface UITelemetryPayload {
+  level: RiskLevel;
+  codeLensText: string;
+  hoverMarkdown: string;
+}
+
+export interface ImportNode {
+  localName: string;
+  foreignName: string;
+  resolvedURI: string | null;
+}
+
+export interface OptimizedFileRecord {
+  fileURI: string;
+  localFunctionMap: Map<string, ParsedFunction>; // O(1) Lookups
+  importMap: Map<string, ImportNode>; // O(1) Lookups
+}
+
+// --- THE GRAPH MEMORY STRUCTURE (4.13 & 4.17) ---
+export interface GraphNode {
+  outboundEdges: Set<string>;
+  inboundEdges: Set<string>;
+  deepInboundCache: Set<string> | null; // Memoization Cache
+}
+
 // ======================================================
 // Semantic Hashing Configuration
 // ======================================================
