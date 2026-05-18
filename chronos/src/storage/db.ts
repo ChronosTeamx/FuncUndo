@@ -64,8 +64,9 @@ function migrateV1(): void {
       id            TEXT PRIMARY KEY,
       filePath     TEXT NOT NULL,
       functionName TEXT NOT NULL,
-      parentId     TEXT,
-      parentName   TEXT
+      parentId     TEXT NOT NULL DEFAULT 'GLOBAL',
+      parentName   TEXT NOT NULL DEFAULT 'GLOBAL',
+      UNIQUE(filePath, functionName, parentId, parentName)
     );
     CREATE TABLE IF NOT EXISTS snapshots (
       id                  TEXT PRIMARY KEY,
