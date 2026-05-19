@@ -105,8 +105,8 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
       functionsToSave.push({
         filePath,
         functionName: fn.name,
-        parentName: null,
-        parentId: null,
+        parentName: 'GLOBAL', //need to implement parent tracking in parser to fill this correctly 
+        parentId: 'GLOBAL',  //need to implement parent tracking in parser to fill this correctly 
         content: fn.rawText,
         hash: fn.hash,
         dependencies: [],

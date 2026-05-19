@@ -1,12 +1,23 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
-export const functionHistory = sqliteTable('function_history', {
-  id: text('id').primaryKey(),
-  filePath: text('filePath').notNull(),
-  functionName: text('functionName').notNull(),
-  parentId: text('parentId'),
-  parentName: text('parentName'),
-});
+export const functionHistory = sqliteTable(
+  'function_history',
+  {
+    id: text('id').primaryKey(),
+    filePath: text('filePath').notNull(),
+    functionName: text('functionName').notNull(),
+    parentId: text('parentId').notNull().default('GLOBAL'),
+    parentName: text('parentName').notNull().default('GLOBAL'),
+  },
+  (table) => ([
+    uniqueIndex('idx_unique_function_identity').on(
+      table.filePath,
+      table.functionName,
+      table.parentId,
+      table.parentName,
+    ),
+  ]),
+);
 export const snapshots = sqliteTable('snapshots', {
   id: text('id').primaryKey(),
   functionHistoryId: text('functionHistoryId')
@@ -48,4 +59,4 @@ export type NewSnapshot = typeof snapshots.$inferInsert;
 export type DependencyRecord = typeof dependencies.$inferSelect;
 export type NewDependency = typeof dependencies.$inferInsert;
 export type PointerRecord = typeof pointers.$inferSelect;
-export type NewPointer    = typeof pointers.$inferInsert;
+export type NewPointer = typeof pointers.$inferInsert;

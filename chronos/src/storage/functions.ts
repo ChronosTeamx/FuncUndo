@@ -6,8 +6,8 @@ import { functionHistory, NewFunction } from './schema';
 export interface functionIdentity{
     filePath: string;  //relative file path to the function
     functionName: string;
-    parentName: string | null;
-    parentId: string | null;
+    parentName: string ;
+    parentId: string ;
 };
 
 //this generates a unique ID for a function based on its identity (file path, function name, parent function info) by hashing these attributes together using SHA-256. This allows us to track the same logical function across different versions of the code, even if its name or location changes, as long as its identity remains consistent.

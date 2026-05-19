@@ -1,3 +1,30 @@
+// --- THE ENUMS & TELEMETRY (4.23) ---
+
+export interface UITelemetryPayload {
+  level: RiskLevel;
+  codeLensText: string;
+  hoverMarkdown: string;
+}
+
+export interface ImportNode {
+  localName: string;
+  foreignName: string;
+  resolvedURI: string | null;
+}
+
+export interface OptimizedFileRecord {
+  fileURI: string;
+  localFunctionMap: Map<string, ParsedFunction>; // O(1) Lookups
+  importMap: Map<string, ImportNode>; // O(1) Lookups
+}
+
+// --- THE GRAPH MEMORY STRUCTURE (4.13 & 4.17) ---
+export interface GraphNode {
+  outboundEdges: Set<string>;
+  inboundEdges: Set<string>;
+  deepInboundCache: Set<string> | null; // Memoization Cache
+}
+
 // ======================================================
 // Semantic Hashing Configuration
 // ======================================================
@@ -88,7 +115,15 @@ export interface ParsedFunction {
   hash: string;
   range: CodeRange;
   rawText: string;
-  calls: string[]; // List of called function names within this function
+  calls: string[];
+  // --- NEW: DOMAIN 4 GATEWAY METADATA ---
+  isExported: boolean;
+  exportedAs: string | null;
+}
+
+export interface ProxyExport {
+  name: string;
+  source: string;
 }
 
 export interface IntraFileEdge {
@@ -106,6 +141,11 @@ export interface RiskAnalysisResult {
   dependents: string[];
 }
 
+export interface ExportedSymbol {
+  originalName: string; // The internal name of the function/variable
+  exportedAs: string; // The public name it is exported as (handles aliases and 'default')
+}
+
 export interface WorkerParseRequest {
   type: 'PARSE_REQUEST';
   jobId: string;
@@ -119,6 +159,9 @@ export interface WorkerParseSuccess {
   filePath: string;
   fileHash: string;
   functions: ParsedFunction[];
+  // --- NEW: THE CROSS-FILE GATEWAYS ---
+  proxyExports: ProxyExport[];
+  wildcardExports: string[];
   edges: IntraFileEdge[];
   processingTimeMs: number;
 }
