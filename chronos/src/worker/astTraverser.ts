@@ -121,6 +121,8 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
         },
         rawText: node.text,
         calls: extractInternalCalls(node),
+        isExported: false, // default, may be updated later by exportResolver
+        exportedAs: null, // default, may be updated later by exportResolver
       };
       results.push(parsedFunc);
     }
