@@ -6,6 +6,9 @@ import { getTimelineForFile } from './storage/reads';
 import { getAllFunctionsInFile } from './storage/functions';
 import { generateFileHash } from './worker/semanticHasher';
 
+// import { resolveAbsoluteURI } from './utils/uriResolver';
+// resolveAbsoluteURI is a function that takes in a caller file path, an import string, a set of valid workspace files, and an optional alias mapping. It returns the resolved absolute URI if the import is valid and within the workspace, or null if it's a node_module or cannot be resolved.
+
 let workerManager: ParserWorkerManager | null = null;
 let isDBReady = false;
 let isProcessing = false;
@@ -42,13 +45,13 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
     }
 
     // File-level early exit — skip if nothing changed
-    const currentFileHash = generateFileHash(parsedFunctions.map(fn => fn.hash));
+    const currentFileHash = generateFileHash(parsedFunctions.map((fn) => fn.hash));
     const knownFunctions = getAllFunctionsInFile(filePath);
     const timelineMap = getTimelineForFile(filePath);
 
     if (knownFunctions.length > 0) {
       const lastHashes = knownFunctions
-        .map(fn => timelineMap.get(fn.id)?.[0]?.snapshot.hash)
+        .map((fn) => timelineMap.get(fn.id)?.[0]?.snapshot.hash)
         .filter((h): h is string => !!h);
 
       const lastFileHash = generateFileHash(lastHashes);
@@ -100,8 +103,8 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
       functionsToSave.push({
         filePath,
         functionName: fn.name,
-        parentName: 'GLOBAL', //need to implement parent tracking in parser to fill this correctly 
-        parentId: 'GLOBAL',  //need to implement parent tracking in parser to fill this correctly 
+        parentName: 'GLOBAL', //need to implement parent tracking in parser to fill this correctly
+        parentId: 'GLOBAL', //need to implement parent tracking in parser to fill this correctly
         content: fn.rawText,
         hash: fn.hash,
         dependencies: [],
@@ -112,7 +115,7 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
       console.log(
         renamedFrom
           ? `[Orchestrator] Queued rename: ${renamedFrom} → ${fn.name}`
-          : `[Orchestrator] Queued: ${fn.name} (${lastHash ? 'changed' : 'new'})`
+          : `[Orchestrator] Queued: ${fn.name} (${lastHash ? 'changed' : 'new'})`,
       );
     }
 
@@ -122,7 +125,6 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
     } else {
       console.log('[Orchestrator] Nothing changed, no saves needed');
     }
-
   } catch (err) {
     console.error('[Orchestrator] Failed:', err);
   } finally {

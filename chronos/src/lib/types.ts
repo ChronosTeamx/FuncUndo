@@ -6,16 +6,23 @@ export interface UITelemetryPayload {
   hoverMarkdown: string;
 }
 
-export interface ImportNode {
+export interface ImportedSymbol {
   localName: string;
   foreignName: string;
-  resolvedURI: string | null;
+  rawSource: string; // The raw import statement for reference
+  /**
+   * Filled later by Main Thread resolver.
+   * Undefined = not resolved yet
+   * Null = attempted but failed
+   * String = absolute URI
+   */
+  resolvedURI?: string | null;
 }
 
 export interface OptimizedFileRecord {
   fileURI: string;
   localFunctionMap: Map<string, ParsedFunction>; // O(1) Lookups
-  importMap: Map<string, ImportNode>; // O(1) Lookups
+  importMap: Map<string, ImportedSymbol>; // O(1) Lookups
 }
 
 // --- THE GRAPH MEMORY STRUCTURE (4.13 & 4.17) ---
@@ -164,6 +171,8 @@ export interface WorkerParseSuccess {
   wildcardExports: string[];
   edges: IntraFileEdge[];
   processingTimeMs: number;
+  // --- NEW: THE INBOUND GATEWAY ---
+  imports: ImportedSymbol[];
 }
 
 export interface WorkerParseError {
