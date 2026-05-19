@@ -116,6 +116,14 @@ export interface ParsedFunction {
   range: CodeRange;
   rawText: string;
   calls: string[]; // List of called function names within this function
+  // --- NEW: DOMAIN 4 GATEWAY METADATA ---
+  isExported: boolean;
+  exportedAs: string | null;
+}
+
+export interface ProxyExport {
+  name: string;
+  source: string;
 }
 
 export interface IntraFileEdge {
@@ -133,6 +141,11 @@ export interface RiskAnalysisResult {
   dependents: string[];
 }
 
+export interface ExportedSymbol {
+  originalName: string; // The internal name of the function/variable
+  exportedAs: string; // The public name it is exported as (handles aliases and 'default')
+}
+
 export interface WorkerParseRequest {
   type: 'PARSE_REQUEST';
   jobId: string;
@@ -146,6 +159,9 @@ export interface WorkerParseSuccess {
   filePath: string;
   fileHash: string;
   functions: ParsedFunction[];
+  // --- NEW: THE CROSS-FILE GATEWAYS ---
+  proxyExports: ProxyExport[];
+  wildcardExports: string[];
   edges: IntraFileEdge[];
   processingTimeMs: number;
 }
