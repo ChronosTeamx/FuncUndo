@@ -52,6 +52,11 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
         .filter((h): h is string => !!h);
 
       const lastFileHash = generateFileHash(lastHashes);
+      // add these
+      console.log('[DEBUG] currentFileHash:', currentFileHash);
+      console.log('[DEBUG] lastFileHash:', generateFileHash(lastHashes));
+      console.log('[DEBUG] knownFunctions count:', knownFunctions.length);
+      console.log('[DEBUG] lastHashes count:', lastHashes.length);
 
       if (currentFileHash === lastFileHash) {
         console.log('[Orchestrator] File unchanged, skipping');
