@@ -5,6 +5,7 @@ import { WorkerMessage, WorkerParseSuccess } from '../lib/types';
 import { extractFunctions } from './astTraverser';
 import { generateFileHash } from './semanticHasher';
 import { resolveExports } from './exportResolver';
+import { extractImports } from './importExtractor';
 
 // Safety check: Ensure this file is only run as a Worker thread
 if (!parentPort) {
@@ -68,6 +69,8 @@ parentPort.on('message', async (message: WorkerMessage) => {
 
       const { proxyExports, wildcardExports } = resolveExports(rootNode, functions);
 
+      const resolvedImports = extractImports(rootNode);
+
       // Generate the Master File Hash by pulling the individual hashes we just created
       const functionHashes = functions.map((f) => f.hash);
       const masterFileHash = generateFileHash(functionHashes);
@@ -85,6 +88,7 @@ parentPort.on('message', async (message: WorkerMessage) => {
         proxyExports: proxyExports,
         wildcardExports: wildcardExports,
         edges: [],
+        imports: resolvedImports,
         processingTimeMs: Date.now() - startTime,
       };
 
