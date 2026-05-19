@@ -115,7 +115,7 @@ export interface ParsedFunction {
   hash: string;
   range: CodeRange;
   rawText: string;
-  calls: string[]; // List of called function names within this function
+  calls: string[];
   // --- NEW: DOMAIN 4 GATEWAY METADATA ---
   isExported: boolean;
   exportedAs: string | null;
