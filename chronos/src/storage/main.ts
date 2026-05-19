@@ -2,7 +2,7 @@
 // All other phases import from here, never from individual files
 
 // DB lifecycle
-export { initDB, persistDB, closeDB, getDB } from './db';
+export { initDB, persistDB, closeDB, getDB , getDrizzleDB} from './db';
 
 // Write
 export {  saveAllFunctionsSnapshots } from './snapshots';

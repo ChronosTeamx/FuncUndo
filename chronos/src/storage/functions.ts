@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import { eq, and, isNull } from 'drizzle-orm';
-import { db } from './db';
+import { getDrizzleDB } from './db';
 import { functionHistory, NewFunction } from './schema';
 
 export interface functionIdentity{
@@ -20,6 +20,7 @@ export function upsertFunction(identity: functionIdentity): string {
     const id = generateFunctionId(identity);
 
       // Check if this function already exists
+  const db = getDrizzleDB();
   const existing = db
     .select()
     .from(functionHistory)
@@ -52,6 +53,7 @@ export function upsertFunction(identity: functionIdentity): string {
     return id;
 }
 export function getAllFunctionsInFile(filePath: string) {
+    const db = getDrizzleDB();
     return db
     .select()
     .from(functionHistory)

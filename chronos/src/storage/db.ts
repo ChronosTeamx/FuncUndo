@@ -7,7 +7,14 @@ import * as schema from './schema';
 
 let sqlJsDb: Database | null = null; // this will hold the in-memory database instance once initialized
 let dbPath: string | null = null; // this will hold the path to the SQLite database file in the extension's storage directory
-export let db: ReturnType<typeof drizzle<typeof schema>>; // this will hold the Drizzle ORM instance once initialized, allowing us to interact with the database using Drizzle's API
+let db: ReturnType<typeof drizzle<typeof schema>>; // this will hold the Drizzle ORM instance once initialized, allowing us to interact with the database using Drizzle's API
+
+export function getDrizzleDB(): ReturnType<typeof drizzle<typeof schema>> { 
+  if (!db) {
+    throw new Error('[FuncUndo] DB not initialized — call initDB first');
+  }
+  return db;
+}
 
 export async function initDB(context: vscode.ExtensionContext): Promise<void> {
   const SQL = await initSqlJs({
