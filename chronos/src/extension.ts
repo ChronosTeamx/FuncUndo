@@ -1,9 +1,6 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
-import { initDB, persistDB, closeDB } from './storage/db';
-import { saveAllFunctionsSnapshots, parsedFunction } from './storage/snapshots';
-import { getTimelineForFile } from './storage/reads';
-import { getAllFunctionsInFile } from './storage/functions';
+import { initDB, persistDB, closeDB, saveAllFunctionsSnapshots, parsedFunction, getTimelineForFile, getAllFunctionsInFile } from './storage/main';
 import { generateFileHash } from './worker/semanticHasher';
 
 let workerManager: ParserWorkerManager | null = null;
