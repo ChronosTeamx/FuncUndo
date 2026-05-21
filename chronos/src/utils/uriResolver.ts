@@ -3,15 +3,15 @@ import * as path from 'path';
 /**
  * Enterprise-grade URI resolver.
  *
- * Resolves:
+ * Supports:
  * - relative imports
- * - absolute imports
  * - aliases (@/)
+ * - monorepo package imports
  * - extensionless imports
- * - folder index files
+ * - folder indexes
  *
- * Never touches disk.
- * Uses O(1) RAM lookup.
+ * O(1) RAM lookup only.
+ * Zero disk I/O.
  */
 export function resolveAbsoluteURI(
   callerFilePath: string,
@@ -20,26 +20,7 @@ export function resolveAbsoluteURI(
   aliases: Record<string, string> = {},
 ): string | null {
   // -----------------------------
-  // NODE_MODULES FIREWALL
-  // -----------------------------
-  const isRelative = importString.startsWith('.');
-
-  const isAbsolute = importString.startsWith('/');
-
-  const isAlias = Object.keys(aliases).some((prefix) => importString.startsWith(prefix));
-
-  /**
-   * Example:
-   * react
-   * lodash
-   * axios
-   */
-  if (!isRelative && !isAbsolute && !isAlias) {
-    return null;
-  }
-
-  // -----------------------------
-  // ALIAS INTERCEPTION
+  // 1. ALIAS INTERCEPTION
   // -----------------------------
   let targetString = importString;
 
@@ -52,9 +33,11 @@ export function resolveAbsoluteURI(
   }
 
   // -----------------------------
-  // DIRECTORY MATH
+  // 2. DIRECTORY MATH
   // -----------------------------
   let targetPath = targetString;
+
+  const isRelative = targetString.startsWith('.');
 
   if (isRelative) {
     const callerDir = path.dirname(callerFilePath);
@@ -62,25 +45,25 @@ export function resolveAbsoluteURI(
     targetPath = path.resolve(callerDir, targetString);
   }
 
-  // Windows-safe normalization
+  // Normalize Windows paths
   targetPath = targetPath.replace(/\\/g, '/');
 
   // -----------------------------
-  // RESOLUTION CASCADE
+  // 3. RESOLUTION CASCADE
   // -----------------------------
   const cascadeQueue = [
-    // Exact file
+    // Exact match
     targetPath,
 
-    // TypeScript priority
+    // TS priority
     `${targetPath}.ts`,
     `${targetPath}.tsx`,
 
-    // JavaScript fallback
+    // JS fallback
     `${targetPath}.js`,
     `${targetPath}.jsx`,
 
-    // Folder index resolution
+    // Folder indexes
     `${targetPath}/index.ts`,
     `${targetPath}/index.tsx`,
     `${targetPath}/index.js`,
@@ -88,14 +71,23 @@ export function resolveAbsoluteURI(
   ];
 
   // -----------------------------
-  // O(1) RAM LOOKUP
+  // 4. RAM FIREWALL
   // -----------------------------
-  for (const attempt of cascadeQueue) {
-    if (validWorkspaceFiles.has(attempt)) {
-      return attempt;
+  for (const candidate of cascadeQueue) {
+    // O(1) RAM check
+    if (validWorkspaceFiles.has(candidate)) {
+      /**
+       * Double safety:
+       * Never parse node_modules.
+       */
+      if (candidate.includes('/node_modules/')) {
+        return null;
+      }
+
+      return candidate;
     }
   }
 
-  // Broken import
+  // External dependency
   return null;
 }

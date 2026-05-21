@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { db, persistDB } from './db';
+import { getDrizzleDB, persistDB } from './db';
 import { getDB } from './db';
 import { snapshots, dependencies, NewSnapshot, NewDependency } from './schema';
 import { upsertFunction } from './functions';
@@ -38,6 +38,7 @@ export interface parsedFunction {
     endLine: fn.endLine,
     createdAt: Date.now(),
   };
+  const db = getDrizzleDB();
   db.insert(snapshots).values(newSnapshot).run();
 
   // Step 4 — insert dependencies
