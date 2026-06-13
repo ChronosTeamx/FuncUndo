@@ -1,8 +1,12 @@
 import { ImportedSymbol, ParsedFunction, WorkerParseSuccess } from '../lib/types';
 import { normalizeOSPath } from '../utils/pathNormalizer';
-import { resolveAbsoluteURI } from '../utils/uriResolver';
+// import { resolveAbsoluteURI } from '../utils/uriResolver';
 
-// The Upgraded RAM Record
+//SEE THE COMMENTED BLOCK BELOW FOR A SAMPLE IMPLEMENTATION OF THE GRAPH BUILDING LOGIC
+//BUT SINCE THIS IS TECHNICALLY PART OF YOUR ASSIGMENT
+// I AM LEAVING IT TO YOU GUYS
+//AFTER IMPLEMENRTING THE GRAPH BUILDING LOGIC, YOU CAN UNCOMMENT THE FUNCTION AND USE IT IN THE WORKER THREAD
+
 export interface OptimizedFileRecord {
   fileURI: string;
   localFunctionMap: Map<string, ParsedFunction>; // Key: local function name
@@ -21,14 +25,12 @@ export class GlobalSymbolRegistry {
   // 2. The Bidirectional Relational Graph
   private directedGraph = new Map<string, GraphNode>();
 
-  // Mock configurations for the workspace (Usually provided by VS Code API)
   private validWorkspaceFiles = new Set<string>();
   private aliases: Record<string, string> = {};
 
   public ingestPayload(payload: WorkerParseSuccess): void {
     const normalizedURI = normalizeOSPath(payload.filePath);
 
-    // Transform Arrays to O(1) Maps
     const localFunctionMap = new Map<string, ParsedFunction>();
     for (const func of payload.functions) {
       localFunctionMap.set(func.name, func);
@@ -66,80 +68,72 @@ export class GlobalSymbolRegistry {
     return null;
   }
 
-  public buildDirectedGraph(): void {
-    // 1. Wipe the relational slate clean.
-    this.directedGraph.clear();
+  // JATIN OR MANKIRAT MAY PROVIDE THEIR OWN IMPLEMENTATION OF THIS :>
 
-    // 2. Iterate through every file in the O(1) RAM Registry
-    for (const [callerURI, payload] of this.fileRegistry.entries()) {
-      for (const func of payload.localFunctionMap.values()) {
-        const callerKey = `${callerURI}::${func.name}`;
+  // public buildDirectedGraph(): void {
+  //   this.directedGraph.clear();
 
-        if (!this.directedGraph.has(callerKey)) {
-          this.directedGraph.set(callerKey, { outboundEdges: new Set(), inboundEdges: new Set() });
-        }
+  //   for (const [callerURI, payload] of this.fileRegistry.entries()) {
+  //     for (const func of payload.localFunctionMap.values()) {
+  //       const callerKey = `${callerURI}::${func.name}`;
 
-        // 3. Iterate through every execution found inside the function
-        for (const callName of func.calls) {
-          let targetKey: string | null = null;
+  //       if (!this.directedGraph.has(callerKey)) {
+  //         this.directedGraph.set(callerKey, { outboundEdges: new Set(), inboundEdges: new Set() });
+  //       }
 
-          // --- O(1) LOCAL EDGE RESOLUTION ---
-          if (payload.localFunctionMap.has(callName)) {
-            targetKey = `${callerURI}::${callName}`;
-          }
-          // --- O(1) FOREIGN EDGE RESOLUTION ---
-          else if (payload.importMap.has(callName)) {
-            const importRecord = payload.importMap.get(callName)!;
+  //       // 3. Iterate through every execution found inside the function
+  //       for (const callName of func.calls) {
+  //         let targetKey: string | null = null;
 
-            // ⚡ Phase 3 Bridge: Run the RAM-based URI Resolver!
-            const targetURI = resolveAbsoluteURI(
-              callerURI,
-              importRecord.rawSource,
-              this.validWorkspaceFiles,
-              this.aliases,
-            );
+  //         if (payload.localFunctionMap.has(callName)) {
+  //           targetKey = `${callerURI}::${callName}`;
+  //         }
 
-            if (targetURI) {
-              const trueName = this.resolveExport(targetURI, importRecord.foreignName);
-              if (trueName) {
-                targetKey = `${normalizeOSPath(targetURI)}::${trueName}`;
-              }
-            }
-          }
+  //         else if (payload.importMap.has(callName)) {
+  //           const importRecord = payload.importMap.get(callName)!;
 
-          // --- 🔄 THE BIDIRECTIONAL ATTACHMENT ---
-          if (targetKey) {
-            if (!this.directedGraph.has(targetKey)) {
-              this.directedGraph.set(targetKey, {
-                outboundEdges: new Set(),
-                inboundEdges: new Set(),
-              });
-            }
+  //           const targetURI = resolveAbsoluteURI(
+  //             callerURI,
+  //             importRecord.rawSource,
+  //             this.validWorkspaceFiles,
+  //             this.aliases,
+  //           );
 
-            // FORWARD: Caller relies on Target
-            this.directedGraph.get(callerKey)!.outboundEdges.add(targetKey);
+  //           if (targetURI) {
+  //             const trueName = this.resolveExport(targetURI, importRecord.foreignName);
+  //             if (trueName) {
+  //               targetKey = `${normalizeOSPath(targetURI)}::${trueName}`;
+  //             }
+  //           }
+  //         }
 
-            // INVERTED (BLAST RADIUS): Target is relied upon by Caller
-            this.directedGraph.get(targetKey)!.inboundEdges.add(callerKey);
-          }
-        }
-      }
-    }
-  }
+  //         if (targetKey) {
+  //           if (!this.directedGraph.has(targetKey)) {
+  //             this.directedGraph.set(targetKey, {
+  //               outboundEdges: new Set(),
+  //               inboundEdges: new Set(),
+  //             });
+  //           }
 
-  /**
-   * UI TELEMETRY: Get the Blast Radius
-   */
-  public getBlastRadiusTelemetry(uuid: string): string {
-    const node = this.directedGraph.get(uuid);
-    const blastRadiusCount = node ? node.inboundEdges.size : 0;
+  //           this.directedGraph.get(callerKey)!.outboundEdges.add(targetKey);
 
-    if (blastRadiusCount === 0) {
-      return `🟢 SAFE: No internal modules rely on this function.`;
-    } else {
-      return `⚠️ DANGER: Blast Radius impacts ${blastRadiusCount} dependents.`;
-    }
-  }
+  //           this.directedGraph.get(targetKey)!.inboundEdges.add(callerKey);
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+
+  // public getBlastRadiusTelemetry(uuid: string): string {
+  //   const node = this.directedGraph.get(uuid);
+  //   const blastRadiusCount = node ? node.inboundEdges.size : 0;
+
+  //   if (blastRadiusCount === 0) {
+  //     return `🟢 SAFE: No internal modules rely on this function.`;
+  //   } else {
+  //     return `⚠️ DANGER: Blast Radius impacts ${blastRadiusCount} dependents.`;
+  //   }
+  // }
 
   // DEV TOOL
   public getRegistrySize(): number {
