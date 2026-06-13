@@ -1,12 +1,49 @@
-import { WorkerParseSuccess } from '../lib/types';
+import { ImportedSymbol, ParsedFunction, WorkerParseSuccess } from '../lib/types';
 import { normalizeOSPath } from '../utils/pathNormalizer';
+import { resolveAbsoluteURI } from '../utils/uriResolver';
+
+// The Upgraded RAM Record
+export interface OptimizedFileRecord {
+  fileURI: string;
+  localFunctionMap: Map<string, ParsedFunction>; // Key: local function name
+  importMap: Map<string, ImportedSymbol>; // Key: local alias name
+}
+
+export interface GraphNode {
+  outboundEdges: Set<string>;
+  inboundEdges: Set<string>;
+}
 
 export class GlobalSymbolRegistry {
-  private registry = new Map<string, WorkerParseSuccess>();
+  // 1. The Raw Data Store
+  private fileRegistry = new Map<string, OptimizedFileRecord>();
+
+  // 2. The Bidirectional Relational Graph
+  private directedGraph = new Map<string, GraphNode>();
+
+  // Mock configurations for the workspace (Usually provided by VS Code API)
+  private validWorkspaceFiles = new Set<string>();
+  private aliases: Record<string, string> = {};
 
   public ingestPayload(payload: WorkerParseSuccess): void {
     const normalizedURI = normalizeOSPath(payload.filePath);
-    this.registry.set(normalizedURI, payload);
+
+    // Transform Arrays to O(1) Maps
+    const localFunctionMap = new Map<string, ParsedFunction>();
+    for (const func of payload.functions) {
+      localFunctionMap.set(func.name, func);
+    }
+
+    const importMap = new Map<string, ImportedSymbol>();
+    for (const imp of payload.imports) {
+      importMap.set(imp.localName, imp);
+    }
+
+    this.fileRegistry.set(normalizedURI, {
+      fileURI: normalizedURI,
+      localFunctionMap,
+      importMap,
+    });
   }
 
   public static generateUUID(normalizedURI: string, functionName: string): string {
@@ -17,23 +54,95 @@ export class GlobalSymbolRegistry {
   // we check if a function with foreing nname exists in the file, if yes we return the local name, if not we return null
   public resolveExport(targetURI: string, foreignName: string): string | null {
     const normalizedURI = normalizeOSPath(targetURI);
-    const fileRecord = this.registry.get(normalizedURI);
+    const fileRecord = this.fileRegistry.get(normalizedURI);
 
     if (!fileRecord) return null;
 
-    const targetFunction = fileRecord.functions.find(
-      (f) => f.exportedAs === foreignName || f.name === foreignName,
-    );
-
-    if (targetFunction) {
-      return targetFunction.name;
+    for (const f of fileRecord.localFunctionMap.values()) {
+      if ((f.exportedAs === foreignName || f.name === foreignName) && f.isExported) {
+        return f.name;
+      }
     }
-
     return null;
+  }
+
+  public buildDirectedGraph(): void {
+    // 1. Wipe the relational slate clean.
+    this.directedGraph.clear();
+
+    // 2. Iterate through every file in the O(1) RAM Registry
+    for (const [callerURI, payload] of this.fileRegistry.entries()) {
+      for (const func of payload.localFunctionMap.values()) {
+        const callerKey = `${callerURI}::${func.name}`;
+
+        if (!this.directedGraph.has(callerKey)) {
+          this.directedGraph.set(callerKey, { outboundEdges: new Set(), inboundEdges: new Set() });
+        }
+
+        // 3. Iterate through every execution found inside the function
+        for (const callName of func.calls) {
+          let targetKey: string | null = null;
+
+          // --- O(1) LOCAL EDGE RESOLUTION ---
+          if (payload.localFunctionMap.has(callName)) {
+            targetKey = `${callerURI}::${callName}`;
+          }
+          // --- O(1) FOREIGN EDGE RESOLUTION ---
+          else if (payload.importMap.has(callName)) {
+            const importRecord = payload.importMap.get(callName)!;
+
+            // ⚡ Phase 3 Bridge: Run the RAM-based URI Resolver!
+            const targetURI = resolveAbsoluteURI(
+              callerURI,
+              importRecord.rawSource,
+              this.validWorkspaceFiles,
+              this.aliases,
+            );
+
+            if (targetURI) {
+              const trueName = this.resolveExport(targetURI, importRecord.foreignName);
+              if (trueName) {
+                targetKey = `${normalizeOSPath(targetURI)}::${trueName}`;
+              }
+            }
+          }
+
+          // --- 🔄 THE BIDIRECTIONAL ATTACHMENT ---
+          if (targetKey) {
+            if (!this.directedGraph.has(targetKey)) {
+              this.directedGraph.set(targetKey, {
+                outboundEdges: new Set(),
+                inboundEdges: new Set(),
+              });
+            }
+
+            // FORWARD: Caller relies on Target
+            this.directedGraph.get(callerKey)!.outboundEdges.add(targetKey);
+
+            // INVERTED (BLAST RADIUS): Target is relied upon by Caller
+            this.directedGraph.get(targetKey)!.inboundEdges.add(callerKey);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * UI TELEMETRY: Get the Blast Radius
+   */
+  public getBlastRadiusTelemetry(uuid: string): string {
+    const node = this.directedGraph.get(uuid);
+    const blastRadiusCount = node ? node.inboundEdges.size : 0;
+
+    if (blastRadiusCount === 0) {
+      return `🟢 SAFE: No internal modules rely on this function.`;
+    } else {
+      return `⚠️ DANGER: Blast Radius impacts ${blastRadiusCount} dependents.`;
+    }
   }
 
   // DEV TOOL
   public getRegistrySize(): number {
-    return this.registry.size;
+    return this.fileRegistry.size;
   }
 }
