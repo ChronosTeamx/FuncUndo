@@ -1,6 +1,7 @@
 import type { SyntaxNode } from 'web-tree-sitter';
 import { ParsedFunction } from '../lib/types';
 import { generateStructuralHash } from './semanticHasher';
+import { ImportedSymbol } from '../lib/types';
 
 const FUNCTION_TYPES = new Set(['function_declaration', 'arrow_function', 'method_definition']);
 
@@ -100,7 +101,10 @@ function extractInternalCalls(functionNode: SyntaxNode): string[] {
 }
 
 //DFS( MAIN FUNCTION )
-export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
+export function extractFunctions(
+  rootNode: SyntaxNode,
+  resolvedImports: ImportedSymbol[],
+): ParsedFunction[] {
   const results: ParsedFunction[] = [];
 
   function walk(node: SyntaxNode) {
@@ -137,18 +141,19 @@ export function extractFunctions(rootNode: SyntaxNode): ParsedFunction[] {
 
   walk(rootNode); //RECURSION TRIGGER
 
-  const validLocalSignatures = new Set(results.map((f) => f.name));
+  const validSignatures = new Set([
+    ...results.map((f) => f.name),
+    ...resolvedImports.map((imp) => imp.localName),
+  ]);
 
   for (const func of results) {
     const purifiedCalls: string[] = [];
-
     for (const rawCall of func.calls) {
-      if (validLocalSignatures.has(rawCall)) {
+      // Now 'calc' will pass this check!
+      if (validSignatures.has(rawCall)) {
         purifiedCalls.push(rawCall);
       }
     }
-
-    // Overwrite the dirty raw calls with the purified list
     func.calls = purifiedCalls;
   }
 

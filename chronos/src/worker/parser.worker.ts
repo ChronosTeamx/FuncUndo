@@ -64,12 +64,12 @@ parentPort.on('message', async (message: WorkerMessage) => {
       const tree = parser.parse(message.fileContent);
       const rootNode = tree.rootNode;
 
+      const resolvedImports = extractImports(rootNode);
+
       // 12: Walk the `rootNode` to find specific functions.
-      const functions = extractFunctions(rootNode);
+      const functions = extractFunctions(rootNode, resolvedImports);
 
       const { proxyExports, wildcardExports } = resolveExports(rootNode, functions);
-
-      const resolvedImports = extractImports(rootNode);
 
       // Generate the Master File Hash by pulling the individual hashes we just created
       const functionHashes = functions.map((f) => f.hash);

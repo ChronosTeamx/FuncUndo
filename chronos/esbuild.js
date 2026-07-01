@@ -33,7 +33,7 @@ const copyWasmPlugin = {
   name: 'copy-wasm',
   setup(build) {
     build.onEnd(() => {
-      const src  = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
+      const src = path.join(__dirname, 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm');
       const dest = path.join(__dirname, 'dist', 'sql-wasm.wasm');
 
       if (!fs.existsSync(path.join(__dirname, 'dist'))) {
@@ -46,10 +46,13 @@ const copyWasmPlugin = {
   },
 };
 
-
 async function main() {
   const ctx = await esbuild.context({
-    entryPoints: ['src/extension.ts', 'src/worker/parser.worker.ts'],
+    entryPoints: [
+      'src/extension.ts',
+      'src/worker/parser.worker.ts',
+      'src/worker/graphMaster.worker.ts',
+    ],
     bundle: true,
     format: 'cjs',
     minify: production,
@@ -57,11 +60,11 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outdir: 'dist',
-    external: ['vscode','sql.js'],
+    external: ['vscode', 'sql.js'],
     logLevel: 'silent',
     plugins: [
       /* add to the end of plugins array */
-      copyWasmPlugin, 
+      copyWasmPlugin,
       esbuildProblemMatcherPlugin,
     ],
   });

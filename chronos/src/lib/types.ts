@@ -187,3 +187,33 @@ export type WorkerMessage =
   | WorkerParseSuccess
   | WorkerParseError
   | WorkerReady;
+
+// Add to your existing types
+export interface GraphMasterIngestMessage {
+  type: 'INGEST_PAYLOAD';
+  payload: WorkerParseSuccess;
+}
+
+export interface GraphMasterQueryMessage {
+  type: 'QUERY_BLAST_RADIUS';
+  queryId: string;
+  targetURI: string;
+  functionName: string;
+}
+
+export interface GraphMasterQueryResponse {
+  type: 'QUERY_BLAST_RADIUS_RESPONSE';
+  queryId: string;
+  blastRadiusCount: number;
+}
+
+export interface GraphMasterUpdateFirewallMessage {
+  type: 'UPDATE_FIREWALL';
+  validFiles: string[];
+  aliases: Record<string, string>;
+}
+
+export type GraphMasterIncoming =
+  | GraphMasterIngestMessage
+  | GraphMasterQueryMessage
+  | GraphMasterUpdateFirewallMessage;
