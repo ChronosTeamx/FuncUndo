@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { ParserWorkerManager } from './worker/workerManager';
-import { initDB, persistDB, closeDB, saveAllFunctionsSnapshots, parsedFunction, getTimelineForFile, getAllFunctionsInFile } from './storage/main';
+import { initDB, persistDB, closeDB, parsedFunction, getTimelineForFile, getAllFunctionsInFile } from './storage/main';
 import { generateFileHash } from './worker/semanticHasher';
-import { registerFileEdges, debugGraph } from './graph/traversal';
+import { GraphMasterManager } from './worker/graphMasterManager';
 // import { resolveAbsoluteURI } from './utils/uriResolver';
 // resolveAbsoluteURI is a function that takes in a caller file path, an import string, a set of valid workspace files, and an optional alias mapping. It returns the resolved absolute URI if the import is valid and within the workspace, or null if it's a node_module or cannot be resolved.
-
+let graphMasterManager: GraphMasterManager | null = null;
 let workerManager: ParserWorkerManager | null = null;
 let isDBReady = false;
 let isProcessing = false;
@@ -33,7 +33,10 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
 
   try {
     const result = await workerManager.parseDocument(filePath, fileText);
-    console.log('[DEBUG] Raw worker result:', JSON.stringify(result, null, 2));
+    graphMasterManager?.postMessage({
+      type: 'INGEST_PAYLOAD',
+      payload: result,
+    });
     const parsedFunctions = result.functions;
     if (parsedFunctions.length === 0) {
       console.log('[Orchestrator] No functions found, skipping');
@@ -52,10 +55,7 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
 
       const lastFileHash = generateFileHash(lastHashes);
       // add these
-      console.log('[DEBUG] currentFileHash:', currentFileHash);
-      console.log('[DEBUG] lastFileHash:', generateFileHash(lastHashes));
-      console.log('[DEBUG] knownFunctions count:', knownFunctions.length);
-      console.log('[DEBUG] lastHashes count:', lastHashes.length);
+
 
       if (currentFileHash === lastFileHash) {
         console.log('[Orchestrator] File unchanged, skipping');
@@ -119,25 +119,6 @@ async function orchestrate(filePath: string, fileText: string): Promise<void> {
           : `[Orchestrator] Queued: ${fn.name} (${lastHash ? 'changed' : 'new'})`,
       );
     }
-
-    if (functionsToSave.length > 0) {
-      saveAllFunctionsSnapshots(functionsToSave);
-      console.log(`[Orchestrator] Saved ${functionsToSave.length} function(s)`);
-      console.log('[DEBUG] Edges count:', result.edges.length);
-      console.log('[DEBUG] Raw edges from worker:', JSON.stringify(result.edges, null, 2));
-      // wire graph edges
-      if (result.edges.length > 0) {
-        registerFileEdges(filePath, result.edges);
-        console.log(`[Graph] Registered ${result.edges.length} edges for ${filePath}`);
-
-        // debug every function that was saved
-        for (const fn of functionsToSave) {
-          debugGraph(filePath, fn.functionName);
-        }
-      }
-    } else {
-      console.log('[Orchestrator] Nothing changed, no saves needed');
-    }
   } catch (err) {
     console.error('[Orchestrator] Failed:', err);
   } finally {
@@ -157,6 +138,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   workerManager = new ParserWorkerManager(context.extensionPath);
   await workerManager.init();
+
+  graphMasterManager = new GraphMasterManager(context.extensionPath);
+  graphMasterManager.init();
+  graphMasterManager.on('message', (message: any) => {
+    if (message.type === 'QUERY_BLAST_RADIUS_RESPONSE') {
+      console.log(`[Graph] Blast radius count: ${message.blastRadiusCount}`);
+    }
+  });
 
   try {
     await initDB(context);
