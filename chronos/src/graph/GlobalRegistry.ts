@@ -1,6 +1,6 @@
 import { ImportedSymbol, ParsedFunction, WorkerParseSuccess } from '../lib/types';
 import { normalizeOSPath } from '../utils/pathNormalizer';
-// import { resolveAbsoluteURI } from '../utils/uriResolver';
+import { resolveAbsoluteURI } from '../utils/uriResolver';
 
 //SEE THE COMMENTED BLOCK BELOW FOR A SAMPLE IMPLEMENTATION OF THE GRAPH BUILDING LOGIC
 //BUT SINCE THIS IS TECHNICALLY PART OF YOUR ASSIGMENT
@@ -70,73 +70,81 @@ export class GlobalSymbolRegistry {
 
   // JATIN OR MANKIRAT MAY PROVIDE THEIR OWN IMPLEMENTATION OF THIS :>
 
-  // public buildDirectedGraph(): void {
-  //   this.directedGraph.clear();
+  public buildDirectedGraph(): void {
+    this.directedGraph.clear();
 
-  //   for (const [callerURI, payload] of this.fileRegistry.entries()) {
-  //     for (const func of payload.localFunctionMap.values()) {
-  //       const callerKey = `${callerURI}::${func.name}`;
+    for (const [callerURI, fileRecord] of this.fileRegistry.entries()) {
+      for (const func of fileRecord.localFunctionMap.values()) {
+        const callerKey = GlobalSymbolRegistry.generateUUID(callerURI, func.name);
 
-  //       if (!this.directedGraph.has(callerKey)) {
-  //         this.directedGraph.set(callerKey, { outboundEdges: new Set(), inboundEdges: new Set() });
-  //       }
+        if (!this.directedGraph.has(callerKey)) {
+          this.directedGraph.set(callerKey, {
+            outboundEdges: new Set(),
+            inboundEdges: new Set(),
+          });
+        }
 
-  //       // 3. Iterate through every execution found inside the function
-  //       for (const callName of func.calls) {
-  //         let targetKey: string | null = null;
+        for (const callName of func.calls) {
+          let targetKey: string | null = null;
 
-  //         if (payload.localFunctionMap.has(callName)) {
-  //           targetKey = `${callerURI}::${callName}`;
-  //         }
+          // Case 1: intra-file call
+          if (fileRecord.localFunctionMap.has(callName)) {
+            targetKey = GlobalSymbolRegistry.generateUUID(callerURI, callName);
+          }
 
-  //         else if (payload.importMap.has(callName)) {
-  //           const importRecord = payload.importMap.get(callName)!;
+          // Case 2: cross-file call via import
+          else if (fileRecord.importMap.has(callName)) {
+            const importRecord = fileRecord.importMap.get(callName)!;
 
-  //           const targetURI = resolveAbsoluteURI(
-  //             callerURI,
-  //             importRecord.rawSource,
-  //             this.validWorkspaceFiles,
-  //             this.aliases,
-  //           );
+            const targetURI = resolveAbsoluteURI(
+              callerURI,
+              importRecord.rawSource,
+              this.validWorkspaceFiles,
+              this.aliases,
+            );
 
-  //           if (targetURI) {
-  //             const trueName = this.resolveExport(targetURI, importRecord.foreignName);
-  //             if (trueName) {
-  //               targetKey = `${normalizeOSPath(targetURI)}::${trueName}`;
-  //             }
-  //           }
-  //         }
+            if (targetURI) {
+              const trueName = this.resolveExport(targetURI, importRecord.foreignName);
+              if (trueName) {
+                targetKey = GlobalSymbolRegistry.generateUUID(
+                  normalizeOSPath(targetURI),
+                  trueName
+                );
+              }
+            }
+          }
 
-  //         if (targetKey) {
-  //           if (!this.directedGraph.has(targetKey)) {
-  //             this.directedGraph.set(targetKey, {
-  //               outboundEdges: new Set(),
-  //               inboundEdges: new Set(),
-  //             });
-  //           }
+          if (targetKey) {
+            if (!this.directedGraph.has(targetKey)) {
+              this.directedGraph.set(targetKey, {
+                outboundEdges: new Set(),
+                inboundEdges: new Set(),
+              });
+            }
 
-  //           this.directedGraph.get(callerKey)!.outboundEdges.add(targetKey);
+            this.directedGraph.get(callerKey)!.outboundEdges.add(targetKey);
+            this.directedGraph.get(targetKey)!.inboundEdges.add(callerKey);
+          }
+        }
+      }
+    }
 
-  //           this.directedGraph.get(targetKey)!.inboundEdges.add(callerKey);
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+    console.log(`[GlobalRegistry] Graph built: ${this.directedGraph.size} nodes`);
+  }
 
-  // public getBlastRadiusTelemetry(uuid: string): string {
-  //   const node = this.directedGraph.get(uuid);
-  //   const blastRadiusCount = node ? node.inboundEdges.size : 0;
-
-  //   if (blastRadiusCount === 0) {
-  //     return `🟢 SAFE: No internal modules rely on this function.`;
-  //   } else {
-  //     return `⚠️ DANGER: Blast Radius impacts ${blastRadiusCount} dependents.`;
-  //   }
-  // }
-
+  public setFirewall(validFiles: string[], aliases: Record<string, string>): void {
+    this.validWorkspaceFiles = new Set(validFiles);
+    this.aliases = aliases;
+  }
   // DEV TOOL
   public getRegistrySize(): number {
     return this.fileRegistry.size;
+  }
+  public getNode(uuid: string): GraphNode | null {
+    return this.directedGraph.get(uuid) || null;
+  }
+
+  public getDirectedGraph(): Map<string, GraphNode> {
+    return this.directedGraph;
   }
 }
