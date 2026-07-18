@@ -28,14 +28,18 @@ export class GlobalSymbolRegistry {
   private validWorkspaceFiles = new Set<string>();
   private aliases: Record<string, string> = {};
 
+  private static getFunctionKey(func: ParsedFunction): string {
+    return [...func.parentChain, func.name].join('::');
+  }
+
   public ingestPayload(payload: WorkerParseSuccess): void {
     const normalizedURI = normalizeOSPath(payload.filePath);
 
     const localFunctionMap = new Map<string, ParsedFunction>();
+
     for (const func of payload.functions) {
       localFunctionMap.set(func.name, func);
     }
-
     const importMap = new Map<string, ImportedSymbol>();
     for (const imp of payload.imports) {
       importMap.set(imp.localName, imp);
@@ -48,8 +52,8 @@ export class GlobalSymbolRegistry {
     });
   }
 
-  public static generateUUID(normalizedURI: string, functionName: string): string {
-    return `${normalizedURI}::${functionName}`;
+  public static generateUUID(normalizedURI: string, func: ParsedFunction): string {
+    return `${normalizedURI}::${GlobalSymbolRegistry.getFunctionKey(func)}`;
   }
 
   //resolves foreign and local names conflict of exports
@@ -75,7 +79,7 @@ export class GlobalSymbolRegistry {
 
   //   for (const [callerURI, payload] of this.fileRegistry.entries()) {
   //     for (const func of payload.localFunctionMap.values()) {
-  //       const callerKey = `${callerURI}::${func.name}`;
+  //       const callerKey = GlobalSymbolRegistry.generateUUID(callerURI, func);
 
   //       if (!this.directedGraph.has(callerKey)) {
   //         this.directedGraph.set(callerKey, { outboundEdges: new Set(), inboundEdges: new Set() });
