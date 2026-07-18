@@ -126,6 +126,7 @@ export interface ParsedFunction {
   // --- NEW: DOMAIN 4 GATEWAY METADATA ---
   isExported: boolean;
   exportedAs: string | null;
+  parentChain: string[];
 }
 
 export interface ProxyExport {
