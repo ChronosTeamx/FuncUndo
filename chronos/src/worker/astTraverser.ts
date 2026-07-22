@@ -106,8 +106,11 @@ export function extractFunctions(
   resolvedImports: ImportedSymbol[],
 ): ParsedFunction[] {
   const results: ParsedFunction[] = [];
+  const functionStack: string[] = [];
 
   function walk(node: SyntaxNode) {
+    let enteredFunction = false;
+
     if (FUNCTION_TYPES.has(node.type)) {
       if (node.hasError) {
         console.log(
@@ -116,8 +119,10 @@ export function extractFunctions(
         return; // Stop processing this specific node
       }
 
+      const functionName = extractFunctionName(node);
+
       const parsedFunc: ParsedFunction = {
-        name: extractFunctionName(node),
+        name: functionName,
         hash: generateStructuralHash(node),
         range: {
           start: { row: node.startPosition.row, column: node.startPosition.column },
@@ -125,10 +130,15 @@ export function extractFunctions(
         },
         rawText: node.text,
         calls: extractInternalCalls(node),
-        isExported: false, // default, may be updated later by exportResolver
-        exportedAs: null, // default, may be updated later by exportResolver
+        isExported: false,
+        exportedAs: null,
+        parentChain: [...functionStack],
       };
+
       results.push(parsedFunc);
+
+      functionStack.push(functionName);
+      enteredFunction = true;
     }
 
     for (let i = 0; i < node.childCount; i++) {
@@ -136,6 +146,9 @@ export function extractFunctions(
       if (child) {
         walk(child);
       }
+    }
+    if (enteredFunction) {
+      functionStack.pop();
     }
   }
 
