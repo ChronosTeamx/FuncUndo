@@ -1,9 +1,10 @@
 import { eq, asc, inArray } from 'drizzle-orm';
-import { db, getDB,persistDB } from './db';
+import { getDrizzleDB, getDB,persistDB } from './db';
 import { functionHistory, snapshots, dependencies, pointers } from './schema';
 
 export function runVacuum(): void {
     const sqlJsDb = getDB();
+    const db = getDrizzleDB();
   if (!sqlJsDb) {
     console.error('Database not initialized');
     return;

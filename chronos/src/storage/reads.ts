@@ -1,5 +1,5 @@
 import { eq, desc  } from 'drizzle-orm';
-import { db } from './db';
+import { getDrizzleDB } from './db';
 import { snapshots, dependencies, functionHistory } from './schema';
 import type { SnapshotRecord, DependencyRecord, FunctionRecord } from './schema';
 
@@ -7,8 +7,8 @@ export interface SnapshotWithDependencies {
   snapshot:     SnapshotRecord;
   dependencies: DependencyRecord[];
 }
-
 export function getFunctionTimeline(functionHistoryId: string): SnapshotWithDependencies[] {
+  const db = getDrizzleDB(); 
   const snapshotsForFunction = db
     .select()
     .from(snapshots)
@@ -28,6 +28,7 @@ export function getFunctionTimeline(functionHistoryId: string): SnapshotWithDepe
 }    
 
 export function getTimelineForFile(filePath: string): Map<string, SnapshotWithDependencies[]> {
+    const db = getDrizzleDB();
     const functionsInFile = db
     .select()
     .from(functionHistory)
@@ -46,6 +47,7 @@ export function getTimelineForFile(filePath: string): Map<string, SnapshotWithDe
 }
 
 export function getSnapshotById(snapshotId: string): SnapshotWithDependencies | null {
+  const db = getDrizzleDB(); 
     const snapshot = db
     .select()
     .from(snapshots)
@@ -66,6 +68,7 @@ export function getSnapshotById(snapshotId: string): SnapshotWithDependencies | 
 export function getLatestSnapshot(
   functionHistoryId: string
 ): SnapshotWithDependencies | null {
+  const db = getDrizzleDB();
   const row = db
     .select()
     .from(snapshots)
@@ -86,6 +89,7 @@ export function getLatestSnapshot(
 }
 
 export function getFunctionById(functionHistoryId: string): FunctionRecord | null {
+  const db = getDrizzleDB(); 
   const row = db
     .select()
     .from(functionHistory)
